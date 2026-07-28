@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>製造工程配置システム ─ 仕出し弁当・ケータリング工場</title>
+<style>
+:root{
+  --bg:#E7EAEB;          /* ステンレスの地 */
+  --card:#FBFCFC;
+  --ink:#101517;
+  --ink2:#48545A;
+  --ink3:#7B878D;
+  --line:#D2D7D9;
+  --line2:#B9C0C3;
+  --zdirty:#A8571C;      /* 汚染作業区域 */
+  --zsemi:#1C7355;       /* 準清潔作業区域 */
+  --zclean:#1B5E8C;      /* 清潔作業区域 */
+  --acc:#1B5E8C;
+  --warn:#9C6A0A;
+  --dang:#A32E24;
+  --ok:#1C7355;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;
+  font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased;font-feature-settings:"palt" 1}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:.04em}
+button,select,input{font-family:inherit;font-size:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+header :focus-visible{outline-color:#FFD24A}
+
+header{background:#152227;color:#EDF1F2;padding:9px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  border-bottom:3px solid var(--acc)}
+header .brand{font-size:14.5px;font-weight:800;letter-spacing:.1em}
+header .brand small{display:block;font-size:9.5px;font-weight:400;letter-spacing:.2em;opacity:.66;margin-top:1px}
+header .ctl{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+header label{font-size:11px;letter-spacing:.08em;opacity:.85}
+header input,header select{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.3);border-radius:2px;padding:4px 6px;color:#fff}
+header select option{color:#101517}
+.run{background:#FFD24A;color:#1A1A10;border:none;border-radius:2px;padding:7px 16px;font-weight:800;
+  letter-spacing:.08em;cursor:pointer;box-shadow:0 2px 0 #B8930F}
+.run:active{transform:translateY(1px);box-shadow:0 1px 0 #B8930F}
+.run[disabled]{opacity:.55;cursor:progress}
+.run.alt{background:#4B7F9E;color:#fff;box-shadow:0 2px 0 #2E5A72}
+
+nav.tabs{background:#D5DADC;border-bottom:1px solid var(--line2);display:flex;padding:0 12px;overflow-x:auto}
+nav.tabs button{background:none;border:none;padding:10px 15px;cursor:pointer;font-size:12px;font-weight:700;
+  letter-spacing:.05em;color:var(--ink2);border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected=true]{color:var(--acc);border-bottom-color:var(--acc);background:var(--bg)}
+
+main{padding:15px}
+.panel{display:none}.panel.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:3px;margin-bottom:13px}
+.card>h2{font-size:12px;letter-spacing:.13em;padding:9px 12px;border-bottom:1px solid var(--line);background:#F1F4F5;color:var(--ink2)}
+.card>h2 .sub{float:right;font-weight:400;letter-spacing:.03em;color:var(--ink3)}
+.card .body{padding:12px}.card .body.flush{padding:0}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:1px;background:var(--line)}
+.kpi{background:var(--card);padding:10px 12px}
+.kpi .lb{font-size:9.5px;letter-spacing:.11em;color:var(--ink3)}
+.kpi .vl{font-size:24px;font-weight:800;line-height:1.15;margin-top:1px;letter-spacing:-.01em}
+.kpi .vl em{font-size:11.5px;font-weight:600;font-style:normal;color:var(--ink3);margin-left:2px}
+.kpi .note{font-size:9.5px;color:var(--ink3)}
+.kpi.good .vl{color:var(--ok)}.kpi.warn .vl{color:var(--warn)}.kpi.bad .vl{color:var(--dang)}
+
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12px}
+th,td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:left}
+th{background:#F1F4F5;font-size:9.5px;letter-spacing:.09em;color:var(--ink2);font-weight:700;position:sticky;top:0;z-index:2}
+tbody tr:hover{background:#F4F7F7}
+.scroll{overflow:auto;max-height:72vh}
+.gw{overflow-x:auto}
+
+/* 工程表グリッド */
+table.grid{width:auto;min-width:100%;font-size:11px}
+table.grid th.hh{text-align:center;min-width:42px;font-size:9.5px}
+table.grid th.lbl{position:sticky;left:0;z-index:3;background:#F1F4F5;min-width:186px}
+table.grid td.lbl{position:sticky;left:0;z-index:1;background:var(--card);min-width:186px;border-right:1px solid var(--line2)}
+td.cell{text-align:center;cursor:pointer;padding:3px 2px;border-right:1px solid #EEF1F1}
+td.cell .n{font-weight:800;font-size:12px}
+td.cell .d{font-size:9px;color:var(--ink3)}
+td.cell.ok{background:#E8F0EC}td.cell.over{background:#E9EEF3}
+td.cell.short{background:#F7E3E1}td.cell.short .n{color:var(--dang)}
+td.cell.zero{background:#F4F5F5;color:#C3C9CB}
+td.cell.sel{outline:2px solid var(--acc);outline-offset:-2px}
+
+/* ゾーン帯 */
+.zbar{display:inline-block;width:4px;height:26px;vertical-align:-8px;margin-right:7px;border-radius:1px}
+.zchip{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.05em;padding:1px 5px;border-radius:2px;color:#fff}
+
+/* 必置点検帯 */
+table.chk td.q{text-align:center;font-size:11px;font-weight:800;padding:3px}
+table.chk td.q.y{background:#E8F0EC;color:var(--ok)}
+table.chk td.q.n{background:var(--dang);color:#fff}
+table.chk td.q.na{background:#F0F2F2;color:#CDD3D4}
+table.chk td.lbl{min-width:236px}
+
+/* ガント札 */
+table.gantt{width:auto;min-width:100%;font-size:11px}
+table.gantt th.emp,table.gantt td.emp{position:sticky;left:0;background:var(--card);z-index:2;min-width:172px;border-right:1px solid var(--line2)}
+table.gantt th.emp{background:#F1F4F5;z-index:4}
+table.gantt td.g{padding:2px 1px;min-width:42px;border-right:1px solid #EEF1F1}
+.mag{display:block;border-radius:2px;padding:3px 1px 2px;text-align:center;color:#fff;font-size:8.5px;font-weight:800;
+  letter-spacing:.02em;cursor:pointer;box-shadow:inset 0 -2px 0 rgba(0,0,0,.24);position:relative;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis}
+.mag:hover{filter:brightness(1.14)}
+.mag.lead::after{content:"";position:absolute;top:2px;right:2px;width:3px;height:3px;background:#FFD24A;border-radius:50%}
+.mag.brk{background:#DCE0E1;color:var(--ink3);box-shadow:none;font-weight:600}
+
+/* 月次カレンダー */
+table.cal{width:auto;min-width:100%;font-size:10.5px}
+table.cal th.emp,table.cal td.emp{position:sticky;left:0;background:var(--card);z-index:2;min-width:158px;border-right:1px solid var(--line2)}
+table.cal th.emp{background:#F1F4F5;z-index:4}
+table.cal th.dd{text-align:center;min-width:26px;font-size:9px;padding:3px 1px}
+table.cal th.dd.sun{color:var(--dang)}table.cal th.dd.sat{color:var(--acc)}
+table.cal th.dd.cls{background:#E3E6E7;color:var(--ink3)}
+table.cal td.dc{text-align:center;padding:2px 1px;font-weight:800;font-size:9.5px;border-right:1px solid #EEF1F1;cursor:pointer}
+td.dc.A{background:#DCE9F1;color:#12496E}
+td.dc.B{background:#DFEDE7;color:#12513C}
+td.dc.C{background:#F2E7D9;color:#7A4A12}
+td.dc.off{background:var(--card);color:#CDD3D4}
+td.dc.req{background:#F7E3E1;color:var(--dang)}
+td.dc.cls{background:#E3E6E7;color:#AAB2B5}
+td.dc.today{outline:2px solid var(--acc);outline-offset:-2px}
+
+/* スキル */
+.sk{display:inline-flex;gap:1px;vertical-align:-1px}
+.sk i{width:5px;height:11px;background:#DFE3E4;border-radius:1px;display:block}
+.sk i.on{background:#3E8FBE}.sk i.on.hi{background:var(--acc)}
+.rs{display:inline-block;width:20px;text-align:center;font-weight:800;font-size:10.5px;border-radius:2px;padding:1px 0;cursor:pointer}
+.rs.v0{background:#F1F3F3;color:#C8CED0}
+.rs.v1{background:#E4EBEF;color:#5E747F}
+.rs.v2{background:#D2E0E8;color:#3F6274}
+.rs.v3{background:#B7D0DE;color:#254E63}
+.rs.v4{background:#8FB8CE;color:#123A50}
+.rs.v5{background:#1B5E8C;color:#fff}
+
+.tags{display:flex;flex-wrap:wrap;gap:3px}
+.tag{font-size:9.5px;padding:1px 5px;border-radius:2px;background:#EDF0F1;border:1px solid var(--line);white-space:nowrap}
+.tag.pub{background:#E5EDF3;border-color:#C0D3E0}
+.tag.al{background:#F7EDE3;border-color:#E3CBB2;color:#7A4A12}
+.badge{display:inline-block;font-size:9px;letter-spacing:.05em;padding:1px 5px;border-radius:2px;font-weight:700}
+.badge.pub{background:#1B5E8C;color:#fff}.badge.int{background:#E1E5E6;color:var(--ink2);border:1px solid var(--line2)}
+
+ul.vio{list-style:none;margin:0;padding:0}
+ul.vio li{padding:6px 10px;border-bottom:1px solid var(--line);display:flex;gap:9px;align-items:baseline;font-size:12px}
+ul.vio li .lv{flex:none;font-size:9px;font-weight:800;letter-spacing:.06em;padding:2px 6px;border-radius:2px;color:#fff}
+ul.vio li .lv.h{background:var(--dang)}.lv.m{background:var(--warn)}.lv.l{background:#7B878D}
+ul.vio li.none{color:var(--ok);font-weight:700}
+
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row.mb{margin-bottom:10px}
+.btn{background:var(--card);border:1px solid var(--line2);border-radius:2px;padding:5px 12px;cursor:pointer;font-size:11.5px;font-weight:700}
+.btn:hover{background:#EFF2F3}
+.btn.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+.fld{display:flex;flex-direction:column;gap:2px}
+.fld label{font-size:9.5px;letter-spacing:.09em;color:var(--ink3)}
+.fld select,.fld input{background:var(--card);border:1px solid var(--line2);border-radius:2px;padding:4px 6px}
+.slider{display:flex;align-items:center;gap:7px}
+.slider input[type=range]{width:132px;accent-color:var(--acc)}
+.slider .v{font-weight:800;min-width:28px;text-align:right}
+.hint{font-size:11px;color:var(--ink3);line-height:1.65}
+.hint b{color:var(--ink2)}
+.legend{display:flex;gap:11px;flex-wrap:wrap;font-size:10px;color:var(--ink2);align-items:center}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:1px;margin-right:4px}
+
+#detail{border-top:1px solid var(--line);padding:10px 12px;background:#F6F8F8;font-size:12px}
+#detail .dh{font-weight:800;letter-spacing:.05em;margin-bottom:6px}
+.mini{width:100%;font-size:11.5px}.mini td{border-bottom:1px dotted var(--line);padding:3px 6px}
+.modal{position:fixed;inset:0;background:rgba(16,21,23,.44);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.on{display:flex}
+.modal .box{background:var(--card);border-radius:3px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.32)}
+.modal .box h3{font-size:12px;letter-spacing:.11em;padding:11px 14px;border-bottom:1px solid var(--line);background:#F1F4F5}
+.modal .box .bd{padding:14px;display:flex;flex-direction:column;gap:11px}
+.modal .box .ft{padding:11px 14px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;background:#F6F8F8}
+.dsclm{font-size:10.5px;color:var(--ink3);padding:8px 12px;background:#EFF2F2;border:1px dashed var(--line2);border-radius:3px;line-height:1.7}
+.empty{padding:26px 14px;text-align:center;color:var(--ink3);font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">製造工程配置システム<small>SHOKUHIN KOJO / RECIPE-SKILL AWARE PLANNER</small></div>
+  <div class="ctl">
+    <label for="ym">対象月</label><input type="month" id="ym" value="2026-08">
+    <button class="run" id="runMonth">月次シフトを作成</button>
+    <label for="date">日次</label><input type="date" id="date" value="2026-08-04">
+    <button class="run alt" id="runDay">日次配置を最適化</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-p="month" aria-selected="true">月次シフト</button>
+  <button data-p="day" aria-selected="false">日次配置</button>
+  <button data-p="menu" aria-selected="false">献立・食数</button>
+  <button data-p="recipe" aria-selected="false">レシピと習熟度</button>
+  <button data-p="emp" aria-selected="false">従業員マスタ</button>
+  <button data-p="req" aria-selected="false">必置資格</button>
+</nav>
+
+<main>
+  <!-- ══ 月次シフト ══ -->
+  <section class="panel on" id="p-month">
+    <div class="card"><div class="body flush"><div class="kpis" id="mKpis"><div class="empty">「月次シフトを作成」を押してください。</div></div></div></div>
+    <div class="card">
+      <h2>月次作成の重み<span class="sub">労基法の制約はハード。重みでは緩みません</span></h2>
+      <div class="body"><div class="row" style="gap:20px">
+        <div class="slider"><label for="mCost" style="font-size:11px;font-weight:700">人件費の抑制</label><input type="range" id="mCost" min="0" max="100" value="35"><span class="v num" id="mCostV">35</span></div>
+        <div class="slider"><label for="mFair" style="font-size:11px;font-weight:700">出勤日数の平準化</label><input type="range" id="mFair" min="0" max="100" value="70"><span class="v num" id="mFairV">70</span></div>
+        <div class="slider"><label for="mSkill" style="font-size:11px;font-weight:700">レシピ習熟度の優先</label><input type="range" id="mSkill" min="0" max="100" value="55"><span class="v num" id="mSkillV">55</span></div>
+      </div></div>
+    </div>
+    <div class="card">
+      <h2>勤務カレンダー<span class="sub">早＝早番／中＝中番／遅＝遅番／希＝希望休。日付列をクリックすると日次配置に飛びます</span></h2>
+      <div class="body"><div class="legend" id="calLegend"></div></div>
+      <div class="body flush"><div class="gw"><table class="cal" id="calTbl"></table></div></div>
+    </div>
+    <div class="card">
+      <h2>日次の要員充足<span class="sub">献立の必要人時に対する、月次シフトで確保した供給人時</span></h2>
+      <div class="body flush"><div class="scroll"><table id="mDayTbl"></table></div></div>
+    </div>
+    <div class="card"><h2>労務制約チェック</h2><div class="body flush"><ul class="vio" id="mVio"></ul></div></div>
+  </section>
+
+  <!-- ══ 日次配置 ══ -->
+  <section class="panel" id="p-day">
+    <div class="card"><div class="body flush"><div class="kpis" id="dKpis"><div class="empty">月次シフトを作成したうえで「日次配置を最適化」を押してください。</div></div></div></div>
+    <div class="card">
+      <h2>当日の献立<span class="sub" id="menuSub"></span></h2>
+      <div class="body flush"><div class="scroll" style="max-height:none"><table id="dMenuTbl"></table></div></div>
+    </div>
+    <div class="card">
+      <h2>日次配置の重み</h2>
+      <div class="body"><div class="row" style="gap:20px">
+        <div class="slider"><label for="dCost" style="font-size:11px;font-weight:700">人件費の抑制</label><input type="range" id="dCost" min="0" max="100" value="30"><span class="v num" id="dCostV">30</span></div>
+        <div class="slider"><label for="dSkill" style="font-size:11px;font-weight:700">習熟度の優先</label><input type="range" id="dSkill" min="0" max="100" value="55"><span class="v num" id="dSkillV">55</span></div>
+        <div class="slider"><label for="dZone" style="font-size:11px;font-weight:700">ゾーン往復の抑制</label><input type="range" id="dZone" min="0" max="100" value="60"><span class="v num" id="dZoneV">60</span></div>
+      </div></div>
+    </div>
+    <div class="card">
+      <h2>必置資格の点検帯<span class="sub">赤はその時間枠に有資格者が工場内／該当工程にいない状態</span></h2>
+      <div class="body flush"><div class="gw"><table class="chk" id="dChkTbl"></table></div></div>
+    </div>
+    <div class="card">
+      <h2>タスク別×時間枠の配置<span class="sub">上段＝配置／下段＝必要。セルをクリックで内訳</span></h2>
+      <div class="body flush">
+        <div class="gw"><table class="grid" id="dGridTbl"></table></div>
+        <div id="detail">セルをクリックすると、そのタスク・時間枠の担当者と習熟度を表示します。</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>個人別の作業割当<span class="sub">札をクリックでタスク変更・休憩化・配置解除</span></h2>
+      <div class="body"><div class="row mb"><button class="btn" id="dAddBtn">出勤者を追加する</button><div class="legend" id="dLegend"></div></div></div>
+      <div class="body flush"><div class="gw"><table class="gantt" id="dGanttTbl"></table></div></div>
+    </div>
+    <div class="card"><h2>工程別サマリ</h2><div class="body flush"><div class="scroll"><table id="dProcTbl"></table></div></div></div>
+    <div class="card"><h2>制約チェック結果</h2><div class="body flush"><ul class="vio" id="dVio"></ul></div></div>
+  </section>
+
+  <!-- ══ 献立 ══ -->
+  <section class="panel" id="p-menu">
+    <div class="card">
+      <h2>月間の献立と食数<span class="sub">食数は編集できます。献立パターンを変えると必要人時と必要習熟度が変わります</span></h2>
+      <div class="body flush"><div class="scroll"><table id="menuTbl"></table></div></div>
+    </div>
+    <p class="dsclm">本番ではこの表を受注管理（得意先別の食数確定）と連動させます。仕出し弁当は前日夕方に食数が確定するため、月次シフトは見込み食数で組み、当日朝に日次配置を確定する運用が現実的です。</p>
+  </section>
+
+  <!-- ══ レシピ ══ -->
+  <section class="panel" id="p-recipe">
+    <div class="card">
+      <h2>レシピマスタ<span class="sub">対応可能者＝習熟度が難易度以上の人数。ここが薄いレシピは献立に載せられません</span></h2>
+      <div class="body flush"><div class="scroll"><table id="recipeTbl"></table></div></div>
+    </div>
+    <div class="card">
+      <h2>レシピ別習熟度マトリクス<span class="sub">セルをクリックすると0→5→0で変わります。太枠＝そのレシピの責任者になれる水準</span></h2>
+      <div class="body">
+        <div class="row"><div class="fld"><label>絞り込み</label><select id="rsFilter"></select></div>
+          <div class="fld"><label>氏名・IDで検索</label><input id="rsText" placeholder="例：大久保 / E02"></div>
+          <div class="legend" style="margin-left:auto"><span>習熟度</span>
+            <span class="rs v0">0</span><span class="rs v1">1</span><span class="rs v2">2</span><span class="rs v3">3</span><span class="rs v4">4</span><span class="rs v5">5</span></div>
+        </div>
+      </div>
+      <div class="body flush"><div class="scroll"><table class="grid" id="rsTbl"></table></div></div>
+    </div>
+  </section>
+
+  <!-- ══ 従業員 ══ -->
+  <section class="panel" id="p-emp">
+    <div class="card">
+      <h2>従業員マスタ<span class="sub" id="empCount"></span></h2>
+      <div class="body"><div class="row">
+        <div class="fld"><label>主工程</label><select id="fProc"></select></div>
+        <div class="fld"><label>雇用区分</label><select id="fType"></select></div>
+        <div class="fld"><label>保有資格</label><select id="fQual"></select></div>
+        <div class="fld"><label>対応勤務帯</label><select id="fBand"></select></div>
+        <div class="fld"><label>氏名・IDで検索</label><input id="fText" placeholder="例：大久保 / E02"></div>
+        <button class="btn" id="fClear" style="align-self:flex-end">条件を消す</button>
+      </div></div>
+      <div class="body flush"><div class="scroll"><table id="empTbl"></table></div></div>
+    </div>
+    <p class="dsclm">氏名は架空のダミーです。実運用では従業員IDのみを画面に出し、氏名は権限を持つ管理者の画面に限定する構成を推奨します。</p>
+  </section>
+
+  <!-- ══ 必置資格 ══ -->
+  <section class="panel" id="p-req">
+    <div class="card"><h2>必置要件の定義<span class="sub">この定義が最適化のハード制約になります</span></h2>
+      <div class="body flush"><div class="scroll"><table id="reqTbl"></table></div></div></div>
+    <div class="card"><h2>資格別の保有者<span class="sub">保有者が薄い資格は、日々のシフト調整ではなく育成・採用の問題です</span></h2>
+      <div class="body flush"><div class="scroll"><table id="holderTbl"></table></div></div></div>
+    <div class="card"><h2>衛生ゾーニングと工程<span class="sub">同一日に汚染区域と清潔区域を往復する配置は交差汚染リスクとして検出します</span></h2>
+      <div class="body flush"><div class="scroll"><table id="zoneTbl"></table></div></div></div>
+  </section>
+</main>
+
+<div class="modal" id="editModal"><div class="box">
+  <h3 id="emTitle">割当の変更</h3>
+  <div class="bd"><div class="fld"><label>担当タスク</label><select id="emTask"></select></div><p class="hint" id="emHint"></p></div>
+  <div class="ft"><button class="btn" id="emCancel">やめる</button><button class="btn pri" id="emApply">変更する</button></div>
+</div></div>
+
+<div class="modal" id="addModal"><div class="box">
+  <h3>出勤者を追加する</h3>
+  <div class="bd">
+    <div class="fld"><label>従業員（当日の非出勤者のみ）</label><select id="adEmp"></select></div>
+    <div class="fld"><label>勤務帯</label><select id="adBand"></select></div>
+    <p class="hint" id="adHint"></p>
+  </div>
+  <div class="ft"><button class="btn" id="adCancel">やめる</button><button class="btn pri" id="adApply">追加する</button></div>
+</div></div>
+
+<script id="engine">
+/* ══════════════════════════════════════════════════════════
+   1. マスタとロジック（DOM非依存）
+   ══════════════════════════════════════════════════════════ */
+const HOURS=[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17];
+const NS=HOURS.length, ix=h=>h-3;
+const DOW_JA=['日','月','火','水','木','金','土'];
+const win=(a,b)=>{const r=[];for(let h=a;h<=b;h++)r.push(ix(h));return r;};
+function h32(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;}
+
+/* ── 衛生ゾーニング ── */
+const ZONES={
+  dirty:{name:'汚染作業区域', color:'#A8571C', note:'原材料の受入・下処理・洗浄'},
+  semi: {name:'準清潔作業区域',color:'#1C7355', note:'加熱調理・炊飯'},
+  clean:{name:'清潔作業区域',  color:'#1B5E8C', note:'冷却後の盛付・検品・包装・出荷'},
+  neutral:{name:'区域移動',    color:'#6F7B80', note:'更衣・手洗い・エアシャワー'},
+};
+
+/* ── 工程 ── */
+const PROCS=[
+  {id:'vp',name:'下処理',    ab:'下処',zone:'dirty',skillMin:2},
+  {id:'ws',name:'洗浄・衛生',ab:'洗浄',zone:'dirty',skillMin:1},
+  {id:'ck',name:'加熱調理',  ab:'加熱',zone:'semi', skillMin:3},
+  {id:'fr',name:'揚げ物',    ab:'揚物',zone:'semi', skillMin:3},
+  {id:'rc',name:'米飯',      ab:'米飯',zone:'semi', skillMin:3},
+  {id:'pk',name:'盛付ライン',ab:'盛付',zone:'clean',skillMin:2},
+  {id:'ip',name:'検品・包装',ab:'検品',zone:'clean',skillMin:3},
+  {id:'sh',name:'出荷・配送',ab:'出荷',zone:'clean',skillMin:2},
+  {id:'cw',name:'更衣・手洗い',ab:'更衣',zone:'neutral',skillMin:1},
+];
+const PROCM={}; PROCS.forEach(p=>PROCM[p.id]=p);
+
+/* ── 資格 ── */
+const QUALS={
+  fss:     {name:'食品衛生責任者',              type:'公的',law:'食品衛生法'},
+  haccp:   {name:'HACCP管理責任者',             type:'公的',law:'食品衛生法（HACCPに沿った衛生管理）'},
+  cook:    {name:'調理師',                      type:'公的',law:'調理師法'},
+  nutri:   {name:'管理栄養士',                  type:'公的',law:'栄養士法'},
+  fire:    {name:'防火管理者',                  type:'公的',law:'消防法'},
+  hyg:     {name:'衛生管理者（第二種）',        type:'公的',law:'労働安全衛生法'},
+  boiler:  {name:'ボイラー取扱技能講習',        type:'公的',law:'安衛則（蒸気回転釜）'},
+  hazmat:  {name:'危険物取扱者 乙種第4類',      type:'公的',law:'消防法（揚げ油の指定数量）'},
+  fork:    {name:'フォークリフト運転技能講習',  type:'公的',law:'安衛則第36条'},
+  license: {name:'中型自動車免許',              type:'公的',law:'道路交通法'},
+  label:   {name:'食品表示検定',                type:'公的',law:'食品表示法'},
+  cutter:  {name:'フードカッター取扱認定',      type:'社内',law:'安全作業基準'},
+  temp:    {name:'中心温度記録責任者',          type:'社内',law:'大量調理施設衛生管理マニュアル'},
+  line:    {name:'盛付ライン責任者',            type:'社内',law:'製造管理規程'},
+  allergen:{name:'アレルゲン管理責任者',        type:'社内',law:'アレルゲン管理規程'},
+  sensory: {name:'官能検査員認定',              type:'社内',law:'品質管理規程'},
+  metal:   {name:'金属検出機オペレーター認定',  type:'社内',law:'HACCP CCP管理'},
+  cip:     {name:'CIP洗浄責任者',               type:'社内',law:'洗浄・殺菌手順書'},
+};
+
+/* ── 必置要件 ── */
+const RAW_REQS=[
+  {q:'fss',    sc:'plant', hh:[3,17], note:'営業時間中は常時1名'},
+  {q:'haccp',  sc:'plant', hh:[3,13], note:'CCP記録の責任者'},
+  {q:'fire',   sc:'plant', hh:[3,17], note:'防火対象物の選任義務'},
+  {q:'hyg',    sc:'plant', hh:[6,14], note:'常時50人以上の事業場'},
+  {q:'nutri',  sc:'plant', hh:[6,12], note:'献立・栄養価・アレルゲン表示'},
+  {q:'cook',   sc:'proc', pr:['ck'],           hh:[5,9],  note:'大量調理施設の加熱工程'},
+  {q:'boiler', sc:'proc', pr:['rc'],           hh:[3,6],  note:'蒸気回転釜・連続炊飯機'},
+  {q:'hazmat', sc:'proc', pr:['fr'],           hh:[6,9],  note:'フライヤー油の指定数量以上'},
+  {q:'cutter', sc:'proc', pr:['vp'],           hh:[3,8],  note:'フードカッター稼働時間帯'},
+  {q:'temp',   sc:'proc', pr:['ck','fr','rc'], hh:[6,9],  note:'中心温度75℃1分以上の記録'},
+  {q:'line',   sc:'proc', pr:['pk'],           hh:[8,12], note:'盛付ラインの統括'},
+  {q:'allergen',sc:'proc',pr:['pk'],           hh:[8,12], note:'アレルゲン交差接触の防止'},
+  {q:'sensory',sc:'proc', pr:['pk','ck'],      hh:[8,10], note:'出荷前の官能検査'},
+  {q:'metal',  sc:'proc', pr:['ip'],           hh:[9,13], note:'金属検出機のCCP監視'},
+  {q:'label',  sc:'proc', pr:['ip'],           hh:[9,13], note:'表示内容の最終確認'},
+  {q:'cip',    sc:'proc', pr:['ws'],           hh:[10,14],note:'洗浄・殺菌の記録'},
+  {q:'fork',   sc:'proc', pr:['sh'],           hh:[10,13],note:'パレット積込'},
+  {q:'license',sc:'proc', pr:['sh'],           hh:[10,13],note:'配送車両の運行'},
+];
+const REQS=RAW_REQS.map((r,i)=>{
+  const slots=win(r.hh[0],r.hh[1]);
+  return {id:'Q'+i, qual:r.q, scope:r.sc, procs:r.pr||PROCS.map(p=>p.id), slots, slotSet:new Set(slots),
+          count:1, note:r.note,
+          label:QUALS[r.q].name+(r.sc==='plant'?'／工場全体':'／'+r.pr.map(p=>PROCM[p].name).join('･'))};
+});
+
+/* ── レシピ ── */
+const RECIPES=[
+ {id:'karaage', name:'鶏の唐揚げ',        cat:'主菜',proc:'fr',diff:4,mh:0.50,w:[6,10], al:['小麦','大豆','鶏肉']},
+ {id:'sabamiso',name:'鯖の味噌煮',        cat:'主菜',proc:'ck',diff:4,mh:0.50,w:[5,9], al:['さば','大豆']},
+ {id:'hamburg', name:'ハンバーグ和風あん',cat:'主菜',proc:'ck',diff:3,mh:0.60,w:[5,9], al:['卵','乳','小麦','大豆','牛肉','豚肉']},
+ {id:'shoga',   name:'豚の生姜焼き',      cat:'主菜',proc:'ck',diff:3,mh:0.50,w:[6,9], al:['小麦','大豆','豚肉']},
+ {id:'shirafry',name:'白身魚フライ',      cat:'主菜',proc:'fr',diff:3,mh:0.45,w:[6,9], al:['小麦','卵']},
+ {id:'teriyaki',name:'鶏の照り焼き',      cat:'主菜',proc:'ck',diff:2,mh:0.45,w:[6,9], al:['小麦','大豆','鶏肉']},
+ {id:'subuta',  name:'酢豚',              cat:'主菜',proc:'ck',diff:5,mh:0.60,w:[5,9], al:['小麦','大豆','豚肉']},
+ {id:'sake',    name:'焼鮭',              cat:'主菜',proc:'ck',diff:2,mh:0.40,w:[6,9], al:['さけ']},
+ {id:'hijiki',  name:'ひじきの煮物',      cat:'副菜',proc:'ck',diff:2,mh:0.40,w:[4,8], al:['大豆']},
+ {id:'kinpira', name:'きんぴらごぼう',    cat:'副菜',proc:'ck',diff:2,mh:0.42,w:[4,8], al:['大豆','ごま']},
+ {id:'tamago',  name:'だし巻き卵',        cat:'副菜',proc:'ck',diff:5,mh:0.45,w:[4,9], al:['卵']},
+ {id:'ohitashi',name:'小松菜のおひたし',  cat:'副菜',proc:'vp',diff:1,mh:0.30,w:[4,8], al:['大豆']},
+ {id:'potato',  name:'ポテトサラダ',      cat:'副菜',proc:'vp',diff:2,mh:0.50,w:[4,8], al:['卵','乳']},
+ {id:'kiriboshi',name:'切干大根の煮物',   cat:'副菜',proc:'ck',diff:2,mh:0.36,w:[4,8], al:['大豆']},
+ {id:'chikuzen',name:'筑前煮',            cat:'副菜',proc:'ck',diff:3,mh:0.52,w:[4,8], al:['大豆','鶏肉']},
+ {id:'kabocha', name:'かぼちゃの煮物',    cat:'副菜',proc:'ck',diff:1,mh:0.30,w:[4,8], al:[]},
+ {id:'harusame',name:'春雨サラダ',        cat:'副菜',proc:'vp',diff:2,mh:0.42,w:[5,8], al:['ごま','大豆']},
+ {id:'coleslaw',name:'コールスロー',      cat:'副菜',proc:'vp',diff:1,mh:0.38,w:[4,8], al:['卵','乳']},
+ {id:'hakumai', name:'白飯',              cat:'米飯',proc:'rc',diff:2,mh:0.28,w:[3,6], al:[]},
+ {id:'gomoku',  name:'五目炊き込みご飯',  cat:'米飯',proc:'rc',diff:4,mh:0.40,w:[3,6], al:['小麦','大豆','鶏肉']},
+ {id:'sekihan', name:'赤飯',              cat:'米飯',proc:'rc',diff:4,mh:0.36,w:[3,6], al:['ごま']},
+ {id:'misoshiru',name:'みそ汁',           cat:'汁物',proc:'ck',diff:1,mh:0.28,w:[7,9], al:['大豆']},
+];
+const RECIPEM={}; RECIPES.forEach(r=>RECIPEM[r.id]=r);
+
+/* ── 工程共通タスク ── */
+const PROC_TASKS=[
+  {id:'T_prep',name:'共通下処理（洗浄・カット）',proc:'vp',mh:1.10,w:[3,9], minSkill:2},
+  {id:'T_pack',name:'盛付ライン',                proc:'pk',mh:1.35,w:[8,12],minSkill:2},
+  {id:'T_insp',name:'検品・金属検出・包装',      proc:'ip',mh:0.50,w:[9,13],minSkill:3},
+  {id:'T_temp',name:'中心温度測定・記録',        proc:'ip',mh:0.15,w:[7,10],minSkill:3},
+  {id:'T_ship',name:'出荷・配送準備',            proc:'sh',mh:0.38,w:[10,13],minSkill:2},
+  {id:'T_wash',name:'器具洗浄・区域清掃',        proc:'ws',mh:0.62,w:[10,14],minSkill:1},
+  {id:'T_chg', name:'更衣・手洗い（区域移動）',  proc:'cw',mh:0,   w:[3,17], minSkill:1, opt:true},
+];
+
+/* ── 献立パターン ── */
+const MENU_PAT=[
+  ['karaage','hijiki','kinpira','ohitashi','hakumai','misoshiru'],
+  ['sabamiso','tamago','kiriboshi','coleslaw','hakumai','misoshiru'],
+  ['hamburg','potato','kabocha','harusame','hakumai','misoshiru'],
+  ['shoga','chikuzen','potato','ohitashi','gomoku','misoshiru'],
+  ['shirafry','coleslaw','hijiki','kabocha','hakumai','misoshiru'],
+  ['teriyaki','kabocha','harusame','ohitashi','hakumai','misoshiru'],
+  ['subuta','harusame','kinpira','coleslaw','hakumai','misoshiru'],
+  ['sake','tamago','chikuzen','kiriboshi','sekihan','misoshiru'],
+];
+
+/* ── 勤務帯 ── */
+const BANDS={
+  A:{name:'早番',ab:'早',社員:[3,9],パート:[4,6],アルバイト:[4,5]},
+  B:{name:'中番',ab:'中',社員:[6,9],パート:[7,6],アルバイト:[7,5]},
+  C:{name:'遅番',ab:'遅',社員:[9,9],パート:[10,6],アルバイト:[10,5]},
+  D:{name:'盛付',ab:'盛',社員:[8,8],パート:[8,5],アルバイト:[8,5]},
+};
+function shiftOf(e,band){
+  const [h,len]=BANDS[band][e.type];
+  const start=ix(h), breaks= len>=6?[start+Math.floor(len/2)]:[];
+  const slots=[]; for(let k=0;k<len;k++){const s=start+k; if(!breaks.includes(s)) slots.push(s);}
+  return {band,start,len,breaks,slots,h0:h,h1:h+len};
+}
+
+/* ── 従業員マスタ（ダミー50名）
+   [id,氏名,区分,主工程,工程スキル,資格,対応勤務帯,月上限日数,時給,18歳未満] ── */
+const RAW_EMP=[
+['E01','白石 隆之','社員','ip','ip:5,pk:4,ck:3,sh:3','fss,haccp,hyg,label,metal','BC',22,2450,0],
+['E02','大久保 恵','社員','ck','ck:5,fr:4,vp:3,rc:3','cook,fss,haccp,temp,sensory,boiler','AB',22,2300,0],
+['E03','木原 亮','社員','fr','fr:5,ck:4,vp:3','hazmat,cook,temp,fire','AB',22,2250,0],
+['E04','里村 千夏','社員','rc','rc:5,ck:3,pk:3','boiler,fss,temp,haccp','A',22,2200,0],
+['E05','田淵 健','社員','pk','pk:5,ip:4,sh:3','line,allergen,sensory,nutri,fss,hyg','BC',22,2200,0],
+['E06','中原 由紀','社員','vp','vp:5,ck:3,ws:4','cutter,cip,fss,fire','AB',22,2150,0],
+['E07','野々村 誠','社員','sh','sh:5,ip:3,pk:3','fork,license,fire','BC',22,2150,0],
+['E08','東 佐和子','社員','ip','ip:5,pk:4,ck:3','nutri,label,metal,allergen,hyg,fss','BC',22,2350,0],
+['E09','平川 大輔','社員','ck','ck:5,rc:4,fr:3','cook,boiler,temp,haccp','AB',22,2300,0],
+['E10','松尾 明美','社員','pk','pk:5,vp:4,ip:3','line,allergen,cutter,fss','AB',22,2200,0],
+['E11','森下 順一','社員','ws','ws:5,vp:4,sh:3','cip,fire,fork','BC',22,2050,0],
+['E12','山内 志保','社員','ck','ck:4,pk:4,ip:3','cook,nutri,sensory,haccp,hyg','BC',22,2250,0],
+['E13','阿部 涼子','パート','vp','vp:4,ws:3,pk:3,fr:2','cutter','A',19,1380,0],
+['E14','井口 恵美','パート','ck','ck:4,vp:3,rc:2','temp','A',19,1420,0],
+['E15','大西 幸恵','パート','rc','rc:4,ck:3,pk:2','boiler,haccp','A',19,1450,0],
+['E16','金子 直美','パート','ck','ck:4,fr:3,vp:2','cook,hazmat','A',19,1480,0],
+['E17','川田 秀樹','パート','fr','fr:4,ck:3,ws:3','hazmat,temp,fire','A',19,1500,0],
+['E18','熊谷 智子','パート','vp','vp:4,pk:3,ws:2','cutter,allergen','A',19,1380,0],
+['E19','小柴 真澄','パート','ck','ck:4,pk:3,rc:2','temp','AB',19,1400,0],
+['E20','斎木 洋子','パート','pk','pk:4,vp:3,ip:2,fr:2','line','AB',19,1400,0],
+['E21','篠原 明','パート','rc','rc:4,vp:3,ws:3','boiler,cip','A',19,1430,0],
+['E22','進藤 久美','パート','ck','ck:4,vp:3,pk:2,fr:3','cook,sensory,hazmat','AB',19,1450,0],
+['E23','瀬川 良江','パート','pk','pk:4,ip:3,vp:2','line,allergen','B',19,1400,0],
+['E24','高津 洋介','パート','ip','ip:4,pk:3,sh:3','metal,label','B',19,1450,0],
+['E25','竹内 敏子','パート','pk','pk:4,vp:3','','B',18,1330,0],
+['E26','千原 美佐','パート','ck','ck:4,pk:3,ip:2,fr:2','temp,hazmat','B',19,1420,0],
+['E27','津田 光江','パート','pk','pk:4,ws:3','allergen','B',18,1330,0],
+['E28','寺岡 直樹','パート','ip','ip:4,sh:4,pk:3','metal,fork,fire,license','BC',19,1450,0],
+['E29','内藤 由美','パート','pk','pk:4,vp:3,ck:2','line','B',19,1380,0],
+['E30','中溝 和子','パート','vp','vp:4,pk:3,ws:3','cutter','B',18,1350,0],
+['E31','西岡 順子','パート','ck','ck:4,pk:3,fr:3','cook','B',19,1450,0],
+['E32','沼田 明子','パート','pk','pk:4,ip:3','allergen,sensory','B',18,1350,0],
+['E33','橋詰 洋子','パート','ws','ws:4,vp:3,pk:2','cip','C',18,1300,0],
+['E34','濱口 徹','パート','sh','sh:4,ip:3,ws:3','fork,license,fire','C',19,1450,0],
+['E35','平野 美和','パート','ip','ip:4,pk:3','metal,label','C',19,1430,0],
+['E36','福地 京子','パート','pk','pk:4,ws:3,vp:3','cip','BC',18,1330,0],
+['E37','星野 幸雄','パート','ws','ws:4,sh:3,vp:3','cip,fork','C',19,1350,0],
+['E38','前川 智美','パート','pk','pk:4,ip:3,ck:2','line,allergen','BC',19,1400,0],
+['E39','松島 遼','アルバイト','vp','vp:3,ws:3','','A',16,1300,0],
+['E40','三宅 涼太','アルバイト','pk','pk:3,ip:2','','B',16,1250,0],
+['E41','村瀬 亜紀','アルバイト','pk','pk:3,vp:2','','B',16,1250,0],
+['E42','森 健吾','アルバイト','ws','ws:3,sh:3','fork,license','C',16,1300,0],
+['E43','八木 香織','アルバイト','pk','pk:3,ck:2','','B',16,1250,0],
+['E44','山下 直人','アルバイト','sh','sh:3,ws:3,pk:2','license','C',16,1320,0],
+['E45','湯浅 麻衣','アルバイト','vp','vp:3,pk:2','','A',15,1280,0],
+['E46','吉原 拓','アルバイト','ip','ip:3,pk:2','','C',16,1280,0],
+['E47','若林 千秋','アルバイト','pk','pk:3,ws:2','','B',15,1220,0],
+['E48','渡辺 陸','アルバイト','ws','ws:3,pk:2','','C',15,1220,0],
+['E49','五十嵐 葵','アルバイト','pk','pk:2,vp:2','','B',13,1200,1],
+['E50','岩瀬 樹','アルバイト','ws','ws:2,pk:2','','C',13,1200,1],
+];
+const EMP=RAW_EMP.map(r=>{
+  const sk={}; if(r[4]) r[4].split(',').forEach(p=>{const[k,v]=p.split(':');sk[k]=+v;});
+  return {id:r[0],name:r[1],type:r[2],home:r[3],sk,quals:r[5]?r[5].split(','):[],
+          bands:r[6].split(''),maxDays:r[7],wage:r[8],minor:!!r[9],rs:{}};
+});
+/* 盛付・検品のスキルがある者は、盛付ピーク（8:00〜）専従の勤務帯Dにも入れる */
+EMP.forEach(e=>{ if(((e.sk.pk||0)>=2||(e.sk.ip||0)>=2)&&!e.minor) e.bands.push('D'); });
+const EMPM={}; EMP.forEach(e=>EMPM[e.id]=e);
+/* 資格の希少度（保有者が少ない資格を持つ人から先に配置を決める） */
+const QRARE={}; Object.keys(QUALS).forEach(q=>QRARE[q]=1/Math.max(1,EMP.filter(e=>e.quals.includes(q)).length));
+const rareScore=e=>e.quals.reduce((a,q)=>a+(QRARE[q]||0),0);
+
+/* ── レシピ別習熟度の生成 ──
+   工程スキルを基準に、従業員IDとレシピIDから決定論的にばらつかせる。
+   そのうえで、各レシピに責任者となれる者（習熟度≧難易度）が3名以上いるよう補正する。 */
+function buildRecipeSkills(){
+  EMP.forEach(e=>{ RECIPES.forEach(r=>{
+    const base=e.sk[r.proc]||0;
+    if(base<1){ e.rs[r.id]=0; return; }
+    const t=h32(e.id+'|'+r.id)%100;
+    const d = t<12?1 : t<42?0 : t<72?-1 : t<90?-2 : -3;
+    e.rs[r.id]=Math.max(0,Math.min(5, base+d - (r.diff>=4?1:0)));
+  });});
+  RECIPES.forEach(r=>{
+    let able=EMP.filter(e=>e.rs[r.id]>=r.diff);
+    if(able.length>=3) return;
+    EMP.filter(e=>(e.sk[r.proc]||0)>=1 && e.rs[r.id]<r.diff)
+       .sort((a,b)=>(b.sk[r.proc]-a.sk[r.proc])||(b.rs[r.id]-a.rs[r.id])||a.id.localeCompare(b.id))
+       .slice(0,3-able.length).forEach(e=>e.rs[r.id]=r.diff);
+  });
+}
+buildRecipeSkills();
+
+/* ── 暦・献立 ── */
+function daysIn(y,m){return new Date(y,m,0).getDate();}
+function dayInfo(y,m,d){
+  const dow=new Date(y,m-1,d).getDay();
+  const summer = (m===8 && d>=13 && d<=16);
+  const closed = dow===0 || summer;
+  let meals=0, pat=0;
+  if(!closed){
+    pat=(d*3+m)%MENU_PAT.length;
+    let base = dow===6 ? 1100 : 2200;
+    base += (h32(y+'/'+m+'/'+d)%9)*50 - 100;
+    if(dow!==6 && h32('cat'+y+m+d)%9===0) base+=600;
+    meals=Math.round(base/50)*50;
+  }
+  return {y,m,d,dow,closed,summer,meals,pat};
+}
+function buildMonth(y,m){
+  const out=[]; for(let d=1;d<=daysIn(y,m);d++) out.push(dayInfo(y,m,d));
+  return out;
+}
+function wishOff(e,nd){
+  const n=e.type==='社員'?2:3, s=new Set();
+  for(let k=0;k<n;k++) s.add(1+h32(e.id+'w'+k)%nd);
+  return s;
+}
+
+/* ── 当日タスクの生成 ── */
+function buildTasks(info){
+  if(info.closed||!info.meals) return [];
+  const k=info.meals/100, T=[];
+  MENU_PAT[info.pat].forEach(rid=>{
+    const r=RECIPEM[rid], sl=win(r.w[0],r.w[1]), mh=r.mh*k;
+    T.push({id:'R:'+rid,name:r.name,proc:r.proc,recipe:rid,cat:r.cat,diff:r.diff,
+            al:r.al,mh,need:needArr(sl,mh),slots:sl});
+  });
+  PROC_TASKS.forEach(p=>{
+    const sl=win(p.w[0],p.w[1]), mh=p.mh*k;
+    T.push({id:p.id,name:p.name,proc:p.proc,recipe:null,cat:p.opt?'移動':'工程',diff:p.minSkill,opt:!!p.opt,
+            al:[],mh,need:p.opt?new Array(NS).fill(0):needArr(sl,mh),slots:sl});
+  });
+  return T;
+}
+function needArr(sl,mh){
+  const a=new Array(NS).fill(0), per=mh/sl.length;
+  sl.forEach(s=>a[s]=Math.max(1,Math.round(per)));
+  return a;
+}
+/* 当日のタスク構成に応じて必置要件を絞る。
+   揚げ物のない献立の日に「危険物取扱者／揚げ物」を求めるのは誤りなので、
+   工程要件は、その工程のタスクが実際に稼働している時間枠だけを対象にする。 */
+function activeReqs(T){
+  const live={};
+  T.forEach(t=>{ if(t.opt) return; t.need.forEach((v,s)=>{ if(v>0){ (live[t.proc]=live[t.proc]||new Set()).add(s); } }); });
+  const anySlot=new Set(); Object.values(live).forEach(st=>st.forEach(s=>anySlot.add(s)));
+  const out=[];
+  for(const r of REQS){
+    let slots;
+    if(r.scope==='plant') slots=r.slots.filter(s=>anySlot.has(s));
+    else { const u=new Set(); r.procs.forEach(p=>(live[p]||new Set()).forEach(s=>u.add(s)));
+           slots=r.slots.filter(s=>u.has(s)); }
+    if(slots.length) out.push({...r, slots, slotSet:new Set(slots)});
+  }
+  return out;
+}
+function skillFor(e,t){ if(t.proc==='cw') return 3;
+  return t.recipe ? (e.rs[t.recipe]||0) : (e.sk[t.proc]||0); }
+function demandBySlot(T){ const a=new Array(NS).fill(0); T.forEach(t=>t.need.forEach((v,s)=>a[s]+=v)); return a; }
+
+/* ══════════════════════════════════════════════════════════
+   2. 月次シフトの作成
+   ══════════════════════════════════════════════════════════ */
+function solveMonth(y,mo,menu,w){
+  const nd=menu.length;
+  const cal={}, st={}, wish={};
+  EMP.forEach(e=>{ cal[e.id]=new Array(nd).fill(null); wish[e.id]=wishOff(e,nd);
+    st[e.id]={days:0,hours:0,cost:0,week:{},weekD:{}}; });
+  const firstDow=new Date(y,mo-1,1).getDay();
+  const wkOf=d=>Math.floor((firstDow+d)/7);
+  const costCoef=0.004+w.cost*0.00055, fairCoef=40+w.fair*2.6, skCoef=3+w.skill*0.22;
+
+  /* ── 社員の週休を先に決める ──
+     社員は1日8時間なので週40時間の上限は週5日を意味する。営業6日の週には公休が1日出る。
+     これを日ごとの貪欲で決めると週の前半で40時間を使い切り、土曜に社員が誰も残らない。
+     そうなると有資格者の在席が土曜だけ総崩れになるので、公休は週内で分散させて先に確定する。 */
+  const weeks={};
+  menu.forEach((info,d)=>{ if(info.closed) return; (weeks[wkOf(d)]=weeks[wkOf(d)]||[]).push(d); });
+  const staffOff={};
+  EMP.filter(e=>e.type==='社員').forEach(e=>{
+    const off=new Set(); staffOff[e.id]=off;
+    const perWeek=Math.floor(40/shiftOf(e,'A').slots.length);   /* 週40時間で出られる日数 */
+    Object.entries(weeks).forEach(([wi,ds])=>{
+      let k=h32(e.id+'wk'+wi)%ds.length;
+      for(let i=ds.length;i>perWeek;i--){ off.add(ds[k%ds.length]); k++; }
+    });
+  });
+
+  for(let d=0;d<nd;d++){
+    const info=menu[d]; if(info.closed) continue;
+    const T=buildTasks(info), dem=demandBySlot(T), AR=activeReqs(T);
+    const sup=new Array(NS).fill(0), wk=wkOf(d);
+    const leadNeed={};   /* レシピ責任者がまだ確保できていないレシピ */
+    T.forEach(t=>{ if(t.recipe) leadNeed[t.recipe]=t.diff; });
+    const covered={};    /* 資格ごとに、どのスロットが埋まったか */
+    AR.forEach(r=>covered[r.id]=new Set());
+
+    /* 労基法・社内規程上、その人をその勤務帯に入れられるか。入れられるならシフトを返す */
+    const feasible=(e,band)=>{
+      if(cal[e.id][d]!==null) return null;
+      if(wish[e.id].has(d+1)) return null;                        /* 希望休 */
+      if(staffOff[e.id]&&staffOff[e.id].has(d)) return null;      /* 社員の週公休 */
+      if(st[e.id].days>=e.maxDays) return null;                   /* 月間上限日数 */
+      if((st[e.id].weekD[wk]||0)>=6) return null;                 /* 週1日以上の休日 */
+      if(e.minor && BANDS[band][e.type][0]<5) return null;        /* 18歳未満の深夜業 */
+      if(d>0 && cal[e.id][d-1]==='C' && band==='A') return null;  /* 勤務間インターバル11時間 */
+      const sh=shiftOf(e,band);
+      if((st[e.id].week[wk]||0)+sh.slots.length>40) return null;  /* 週40時間 */
+      return sh;
+    };
+    const take=(e,sh)=>{
+      cal[e.id][d]=sh.band;
+      sh.slots.forEach(s=>sup[s]++);
+      AR.forEach(r=>{ if(e.quals.includes(r.qual)) r.slots.forEach(s=>{ if(sh.slots.includes(s)) covered[r.id].add(s); }); });
+      Object.keys(leadNeed).forEach(rid=>{
+        const wSl=win(RECIPEM[rid].w[0],RECIPEM[rid].w[1]);
+        if(e.rs[rid]>=leadNeed[rid] && wSl.some(s=>sh.slots.includes(s))) delete leadNeed[rid];
+      });
+      st[e.id].days++; st[e.id].hours+=sh.slots.length; st[e.id].cost+=e.wage*sh.slots.length;
+      st[e.id].week[wk]=(st[e.id].week[wk]||0)+sh.slots.length;
+      st[e.id].weekD[wk]=(st[e.id].weekD[wk]||0)+1;
+    };
+    const qGapOf=()=>AR.reduce((a,r)=>a+r.slots.filter(s=>!covered[r.id].has(s)).length,0);
+    const gapOf=()=>dem.reduce((a,v,s)=>a+Math.max(0,v-sup[s]),0);
+
+    /* ── 第0段：社員は原則として毎営業日出勤させる ──
+       仕出し工場では社員がフルタイムで骨格を作り、食数の変動はパート・アルバイトで吸収する。
+       週40時間と月間上限日数に当たった社員には、出勤率の低い者から順に休みが回る。 */
+    EMP.filter(e=>e.type==='社員')
+      .sort((x,z)=>st[x.id].days/x.maxDays-st[z.id].days/z.maxDays||x.id.localeCompare(z.id))
+      .forEach(e=>{
+        let best=null;
+        for(const band of e.bands){
+          const sh=feasible(e,band); if(!sh) continue;
+          let qF=0;
+          for(const r of AR){ if(!e.quals.includes(r.qual)) continue;
+            r.slots.forEach(s=>{ if(sh.slots.includes(s)&&!covered[r.id].has(s)) qF++; }); }
+          let lF=0;
+          for(const rid in leadNeed){
+            const wSl=win(RECIPEM[rid].w[0],RECIPEM[rid].w[1]);
+            if(e.rs[rid]>=leadNeed[rid] && wSl.some(s=>sh.slots.includes(s))) lF++; }
+          const fills=sh.slots.filter(s=>sup[s]<dem[s]).length;
+          const v=qF*95+lF*300+fills*30-(sh.slots.length-fills)*10;
+          if(!best||v>best.v) best={sh,v};
+        }
+        if(best) take(e,best.sh);
+      });
+
+    /* ── 第1段：必置資格の在席とレシピ責任者を確保する ──
+       ここは代替の効かない要件なので、人件費や公平性より優先する。 */
+    for(let it=0;it<40;it++){
+      if(qGapOf()===0 && !Object.keys(leadNeed).length) break;
+      let best=null;
+      for(const e of EMP) for(const band of e.bands){
+        const sh=feasible(e,band); if(!sh) continue;
+        let qF=0;
+        for(const r of AR){ if(!e.quals.includes(r.qual)) continue;
+          r.slots.forEach(s=>{ if(sh.slots.includes(s)&&!covered[r.id].has(s)) qF++; }); }
+        let lF=0, rsMax=0;
+        for(const rid in leadNeed){
+          const wSl=win(RECIPEM[rid].w[0],RECIPEM[rid].w[1]);
+          if(e.rs[rid]>=leadNeed[rid] && wSl.some(s=>sh.slots.includes(s))){ lF++; rsMax=Math.max(rsMax,e.rs[rid]); }
+        }
+        if(!qF && !lF) continue;
+        const v = qF*95 + lF*300 + rsMax*skCoef
+                + sh.slots.filter(s=>sup[s]<dem[s]).length*8
+                + fairCoef*0.35*(1-st[e.id].days/e.maxDays)
+                - e.wage*sh.slots.length*costCoef;
+        if(!best||v>best.v) best={e,sh,v};
+      }
+      if(!best) break;
+      take(best.e,best.sh);
+    }
+
+    /* ── 第2段：残る必要人時を埋める ──
+       出勤日数の偏りが小さい人を優先し、需要と噛み合わない空き枠を持つ勤務帯は避ける。 */
+    let prev=Infinity, stall=0;
+    for(let it=0;it<60;it++){
+      const gap=gapOf(); if(gap===0) break;
+      const got=sup.reduce((x,v)=>x+v,0), tot=dem.reduce((x,v)=>x+v,0);
+      if(got>tot*1.18) break;   /* 増員では埋まらない枠に引きずられないための上限 */
+      if(gap>=prev){ if(++stall>=2) break; } else stall=0;
+      prev=gap;
+      let best=null;
+      for(const e of EMP) for(const band of e.bands){
+        const sh=feasible(e,band); if(!sh) continue;
+        const fills=sh.slots.filter(s=>sup[s]<dem[s]).length; if(!fills) continue;
+        const idle=sh.slots.length-fills;
+        const v = fills*40 - idle*26
+                + fairCoef*(1-st[e.id].days/e.maxDays)
+                - e.wage*sh.slots.length*costCoef;
+        if(!best||v>best.v) best={e,sh,v};
+      }
+      if(!best) break;
+      take(best.e,best.sh);
+    }
+  }
+  return {cal,st,wish,firstDow};
+}
+
+/* ── 月次の労務チェック ── */
+function checkMonth(y,mo,menu,R){
+  const nd=menu.length, V=[], firstDow=R.firstDow, wkOf=d=>Math.floor((firstDow+d)/7);
+  EMP.forEach(e=>{
+    const c=R.cal[e.id]; let run=0, maxRun=0;
+    for(let d=0;d<nd;d++){ if(c[d]){run++; maxRun=Math.max(maxRun,run);} else run=0;
+      if(d>0&&c[d-1]==='C'&&c[d]==='A') V.push({lv:'h',t:`${e.name}（${e.id}）${d}日→${d+1}日が遅番の翌早番で、勤務間インターバル11時間を満たしません`});
+      if(c[d]&&R.wish[e.id].has(d+1)) V.push({lv:'h',t:`${e.name}（${e.id}）${d+1}日は希望休ですが出勤が組まれています`});
+      if(c[d]&&e.minor&&BANDS[c[d]][e.type][0]<5) V.push({lv:'h',t:`${e.name}（${e.id}）は18歳未満のため5時前の勤務に就けません（${d+1}日）`});
+    }
+    if(maxRun>=7) V.push({lv:'h',t:`${e.name}（${e.id}）に${maxRun}日の連続勤務があります（上限6日）`});
+    if(R.st[e.id].days>e.maxDays) V.push({lv:'h',t:`${e.name}（${e.id}）の出勤${R.st[e.id].days}日が月上限${e.maxDays}日を超えています`});
+    const wks={}; for(let d=0;d<nd;d++) if(c[d]){const w=wkOf(d); wks[w]=(wks[w]||0)+shiftOf(e,c[d]).slots.length;}
+    Object.entries(wks).forEach(([w,h])=>{ if(h>40) V.push({lv:'h',t:`${e.name}（${e.id}）第${+w+1}週の実働${h}時間が週40時間を超えています`}); });
+    if(R.st[e.id].days===0) V.push({lv:'l',t:`${e.name}（${e.id}）は当月の出勤がありません`});
+  });
+  menu.forEach((info,d)=>{
+    if(info.closed) return;
+    const T=buildTasks(info), dem=demandBySlot(T), sup=new Array(NS).fill(0);
+    const present=HOURS.map(()=>[]);
+    EMP.forEach(e=>{ const b=R.cal[e.id][d]; if(!b) return;
+      const sh=shiftOf(e,b);
+      sh.slots.forEach(s=>sup[s]++);
+      /* 在席の判定は拘束時間で行う。休憩をどの枠に置くかは日次で調整できる */
+      for(let k=sh.start;k<sh.start+sh.len;k++) if(k<NS) present[k].push(e.id); });
+    const gap=dem.reduce((a,v,s)=>a+Math.max(0,v-sup[s]),0);
+    if(gap>0) V.push({lv:gap>12?'h':'m',t:`${info.d}日（${DOW_JA[info.dow]}）の供給人時が必要人時に対して${gap}人時不足しています`});
+    /* 日次で配置を工夫しても埋まらない穴は、月次の出勤者選定の段階で確定している */
+    activeReqs(T).forEach(r=>{
+      const miss=r.slots.filter(s=>!present[s].some(id=>EMPM[id].quals.includes(r.qual)));
+      if(miss.length) V.push({lv:'h',
+        t:`${info.d}日（${DOW_JA[info.dow]}）${miss.map(s=>HOURS[s]+'時').join('･')}に「${QUALS[r.qual].name}」の有資格者が出勤していません`});
+    });
+  });
+  return V;
+}
+function monthDaySummary(menu,R){
+  return menu.map((info,d)=>{
+    if(info.closed) return {info,closed:true};
+    const T=buildTasks(info), dem=demandBySlot(T), sup=new Array(NS).fill(0);
+    let n=0,cost=0,byBand={A:0,B:0,C:0,D:0};
+    EMP.forEach(e=>{ const b=R.cal[e.id][d]; if(!b) return; n++; byBand[b]++;
+      const sh=shiftOf(e,b); sh.slots.forEach(s=>sup[s]++); cost+=e.wage*sh.slots.length; });
+    const need=dem.reduce((a,v)=>a+v,0), got=sup.reduce((a,v)=>a+v,0);
+    const gap=dem.reduce((a,v,s)=>a+Math.max(0,v-sup[s]),0);
+    return {info,closed:false,n,byBand,need,got,gap,cost,dem,sup};
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. 日次配置の最適化
+   ══════════════════════════════════════════════════════════ */
+function buildGrid(asg,T){
+  const g={}; T.forEach(t=>g[t.id]=HOURS.map(()=>[]));
+  for(const id in asg){ const a=asg[id].alloc; for(const s in a){ if(g[a[s]]) g[a[s]][+s].push(id); } }
+  return g;
+}
+function slotProcPeople(asg,T){
+  const tm={}; T.forEach(t=>tm[t.id]=t);
+  const out=HOURS.map(()=>[]);
+  for(const id in asg){ const a=asg[id].alloc;
+    for(const s in a){ const t=tm[a[s]]; if(t) out[+s].push({id,proc:t.proc,task:t}); } }
+  return out;
+}
+function qualOK(sp,r,s){
+  let n=0; sp[s].forEach(p=>{ if(r.scope==='plant'||r.procs.includes(p.proc)){ if(EMPM[p.id].quals.includes(r.qual)) n++; } });
+  return n;
+}
+function leadOK(g,T){
+  const out={};
+  T.filter(t=>t.recipe).forEach(t=>{
+    let ok=false;
+    t.slots.forEach(s=>g[t.id][s].forEach(id=>{ if((EMPM[id].rs[t.recipe]||0)>=t.diff) ok=true; }));
+    out[t.recipe]=ok;
+  });
+  return out;
+}
+function zoneHops(asg,T){
+  const tm={}; T.forEach(t=>tm[t.id]=t); let n=0; const list=[];
+  for(const id in asg){
+    const ks=Object.keys(asg[id].alloc).map(Number).sort((a,b)=>a-b);
+    for(let i=1;i<ks.length;i++){
+      if(ks[i]-ks[i-1]>1) continue;                 /* 休憩枠を挟んでいる */
+      const z1=PROCM[tm[asg[id].alloc[ks[i-1]]].proc].zone, z2=PROCM[tm[asg[id].alloc[ks[i]]].proc].zone;
+      if(z1==='neutral'||z2==='neutral') continue;   /* 更衣枠を挟んでいる */
+      if((z1==='dirty'&&z2==='clean')||(z1==='clean'&&z2==='dirty')){ n++; list.push({id,s:ks[i],from:z1,to:z2}); }
+    }
+  }
+  return {n,list};
+}
+function dayPenalty(asg,T,costCoef,zoneCoef,AR){
+  AR=AR||activeReqs(T);
+  const g=buildGrid(asg,T), sp=slotProcPeople(asg,T);
+  let p=0,short=0,over=0,mh=0,cost=0,need=0;
+  T.forEach(t=>{ for(let s=0;s<NS;s++){ const n=g[t.id][s].length,q=t.need[s];
+    mh+=n; g[t.id][s].forEach(id=>cost+=EMPM[id].wage);
+    if(t.opt){ p+=n*12; continue; }               /* 更衣枠は最小限に */
+    need+=q;
+    if(n<q){short+=q-n;p+=(q-n)*175;} else if(n>q){over+=n-q;p+=(n-q)*45;}
+  }});
+  let qgap=0;
+  AR.forEach(r=>r.slots.forEach(s=>{ if(qualOK(sp,r,s)<r.count){qgap++;p+=650;} }));
+  const L=leadOK(g,T); let lgap=0;
+  Object.entries(L).forEach(([rid,ok])=>{ if(!ok){lgap++;p+=760;} });
+  const Z=zoneHops(asg,T); p+=Z.n*zoneCoef;
+  p+=cost*costCoef;
+  return {p,short,over,mh,cost,need,qgap,lgap,zone:Z.n};
+}
+function solveDay(info,roster,w){
+  const T=buildTasks(info); if(!T.length) return {T,asg:{},AR:[]};
+  const AR=activeReqs(T);
+  const costCoef=0.004+w.cost*0.00060, skCoef=4+w.skill*0.30, zoneCoef=20+w.zone*1.6;
+  const asg={};
+  /* 希少資格の保有者から先に確定させる。後回しにすると必置要件の穴が埋まらない */
+  const workers=Object.keys(roster).map(id=>({e:EMPM[id],sh:shiftOf(EMPM[id],roster[id])}))
+    .sort((a,b)=>rareScore(b.e)-rareScore(a.e)||a.sh.start-b.sh.start||a.e.id.localeCompare(b.e.id));
+  const tm={}; T.forEach(t=>tm[t.id]=t);
+
+  workers.forEach(({e,sh})=>{
+    const g=buildGrid(asg,T), sp=slotProcPeople(asg,T), L=leadOK(g,T);
+    const alloc={}; let prevZone=null;
+    sh.slots.forEach(s=>{
+      let bt=null,bv=-1e9;
+      for(const t of T){
+        const sk=skillFor(e,t); if(sk<1) continue;
+        let v=0;
+        if(t.opt){
+          const nextClean = sh.slots.includes(s+1);
+          v = (prevZone==='dirty'&&nextClean) ? zoneCoef*0.85 : -400;
+          if(v>bv){bv=v;bt=t.id;}
+          continue;
+        }
+        if(t.need[s]===0) continue;
+        if(g[t.id][s].length<t.need[s]) v+=175+sk*skCoef; else v-=45;
+        if(t.recipe&&!L[t.recipe]&&sk>=t.diff) v+=520;
+        if(!t.recipe&&sk>=t.minSkill) v+=30;
+        AR.forEach(r=>{ if(!r.slotSet.has(s))return; if(!(r.scope==='plant'||r.procs.includes(t.proc)))return;
+          if(!e.quals.includes(r.qual))return; if(qualOK(sp,r,s)<r.count) v+=560; });
+        const z=PROCM[t.proc].zone;
+        if(prevZone&&((prevZone==='dirty'&&z==='clean')||(prevZone==='clean'&&z==='dirty'))) v-=zoneCoef;
+        if(t.proc===e.home) v+=18;
+        if(v>bv){bv=v;bt=t.id;}
+      }
+      if(bt===null){
+        const fb=T.filter(t=>skillFor(e,t)>=1).sort((a,b)=>skillFor(e,b)-skillFor(e,a))[0];
+        if(!fb) return; bt=fb.id;
+      }
+      alloc[s]=bt; g[bt][s].push(e.id); sp[s].push({id:e.id,proc:tm[bt].proc,task:tm[bt]});
+      if(tm[bt].recipe&&skillFor(e,tm[bt])>=tm[bt].diff) L[tm[bt].recipe]=true;
+      prevZone=PROCM[tm[bt].proc].zone;
+    });
+    if(Object.keys(alloc).length) asg[e.id]={band:sh.band,start:sh.start,len:sh.len,breaks:sh.breaks,alloc};
+  });
+  improveDay(asg,T,costCoef,zoneCoef,AR);
+  repairDay(asg,T,AR);
+  improveDay(asg,T,costCoef,zoneCoef,AR,1);
+  return {T,asg,AR};
+}
+function improveDay(asg,T,costCoef,zoneCoef,AR,passes){
+  for(let pass=0;pass<(passes||3);pass++){
+    let changed=false, cur=dayPenalty(asg,T,costCoef,zoneCoef,AR).p;
+    for(const id in asg){ const a=asg[id].alloc;
+      for(const key in a){ const from=a[key], s=+key;
+        for(const t of T){ if(t.id===from) continue;
+          if(skillFor(EMPM[id],t)<1) continue;
+          a[key]=t.id;
+          const np=dayPenalty(asg,T,costCoef,zoneCoef,AR).p;
+          if(np<cur-1e-6){cur=np;changed=true;} else a[key]=from;
+        }
+      }
+    }
+    if(!changed) break;
+  }
+}
+/* ── 必置資格の穴を修復する ──
+   月次で有資格者が出勤していても、工程の割当先や休憩の位置によって穴が空く。
+   ここでは配置の入れ替えと休憩枠の移動だけで埋められる穴を埋める。
+   これで埋まらない穴は、その日の出勤者に有資格者がいないことを意味する。 */
+function repairDay(asg,T,AR){
+  const tm={}; T.forEach(t=>tm[t.id]=t);
+  const pick=(id,s,r)=>T.filter(t=>!t.opt&&t.need[s]>0&&skillFor(EMPM[id],t)>=1
+      &&(r.scope==='plant'||r.procs.includes(t.proc)))
+    .sort((a,b)=>skillFor(EMPM[id],b)-skillFor(EMPM[id],a))[0];
+  for(let pass=0;pass<3;pass++){
+    let fixed=0;
+    for(const r of AR){ for(const s of r.slots){
+      if(qualOK(slotProcPeople(asg,T),r,s)>=r.count) continue;
+      const holders=Object.keys(asg).filter(id=>EMPM[id].quals.includes(r.qual));
+      /* (1) その枠に在席している有資格者を、要件の対象工程へ移す */
+      if(r.scope==='proc'){
+        for(const id of holders){
+          const cur=asg[id].alloc[s];
+          if(!cur||r.procs.includes(tm[cur].proc)) continue;
+          const tgt=pick(id,s,r);
+          if(tgt&&tgt.id!==cur){ asg[id].alloc[s]=tgt.id; fixed++; break; }
+        }
+        if(qualOK(slotProcPeople(asg,T),r,s)>=r.count) continue;
+      }
+      /* (2) 休憩がその枠に当たっている有資格者の休憩を、別の枠へずらす */
+      for(const id of holders){
+        const sh=asg[id]; if(!sh.breaks.includes(s)) continue;
+        const own=[]; for(let k=sh.start;k<sh.start+sh.len;k++) own.push(k);
+        const move=own.find(k=>k!==s&&!sh.breaks.includes(k)&&sh.alloc[k]&&k>sh.start&&k<sh.start+sh.len-1);
+        const tgt=pick(id,s,r);
+        if(move===undefined||!tgt) continue;
+        sh.breaks=sh.breaks.filter(x=>x!==s); sh.breaks.push(move);
+        sh.alloc[s]=tgt.id; delete sh.alloc[move];
+        fixed++; break;
+      }
+    }}
+    if(!fixed) break;
+  }
+}
+function checkDay(info,asg,T,AR){
+  AR=AR||activeReqs(T);
+  const V=[], g=buildGrid(asg,T), sp=slotProcPeople(asg,T), tm={}; T.forEach(t=>tm[t.id]=t);
+  for(const id in asg){ const e=EMPM[id], sh=asg[id];
+    if(e.minor&&HOURS[sh.start]<5) V.push({lv:'h',t:`${e.name}（${id}）は18歳未満のため5時前の勤務に就けません`});
+    if(sh.len>=6&&!sh.breaks.length) V.push({lv:'h',t:`${e.name}（${id}）は6時間超の勤務ですが休憩が設定されていません`});
+    for(const s in sh.alloc){ const t=tm[sh.alloc[s]];
+      if(!t) continue;
+      if(skillFor(e,t)<1) V.push({lv:'h',t:`${e.name}（${id}）は「${t.name}」の${t.recipe?'習熟度':'工程スキル'}が登録されていません（${HOURS[s]}:00）`});
+    }
+  }
+  AR.forEach(r=>r.slots.forEach(s=>{ if(qualOK(sp,r,s)<r.count)
+    V.push({lv:'h',t:`${HOURS[s]}:00台に「${r.label}」の有資格者が不在です`}); }));
+  const L=leadOK(g,T);
+  Object.entries(L).forEach(([rid,ok])=>{ if(!ok){ const r=RECIPEM[rid];
+    V.push({lv:'h',t:`「${r.name}」（難易度${r.diff}）の作業枠に、習熟度${r.diff}以上のレシピ責任者がいません`}); }});
+  T.forEach(t=>{ for(let s=0;s<NS;s++){ const n=g[t.id][s].length;
+    if(t.need[s]>0&&n>0){ let mx=0; g[t.id][s].forEach(id=>mx=Math.max(mx,skillFor(EMPM[id],t)));
+      if(t.recipe&&mx<Math.max(1,t.diff-2)) V.push({lv:'m',t:`${t.name} ${HOURS[s]}:00台の最高習熟度が${mx}で、難易度${t.diff}に対して低すぎます`});
+    }
+  }});
+  zoneHops(asg,T).list.forEach(z=>{
+    V.push({lv:'m',t:`${EMPM[z.id].name}（${z.id}）が${HOURS[z.s]}:00に${ZONES[z.from].name}から${ZONES[z.to].name}へ移動します。手洗い・更衣の枠を挟む必要があります`});
+  });
+  const allergens=new Set(); T.forEach(t=>t.al.forEach(a=>allergens.add(a)));
+  if(allergens.size&&!Object.keys(asg).some(id=>EMPM[id].quals.includes('allergen')))
+    V.push({lv:'h',t:`当日の献立に特定原材料等（${[...allergens].join('、')}）が含まれますが、アレルゲン管理責任者が出勤していません`});
+  return V;
+}
+</script>
+
+<script id="ui">
+/* ══════════════════════════════════════════════════════════
+   4. 画面
+   ══════════════════════════════════════════════════════════ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+const yen=n=>Math.round(n).toLocaleString('ja-JP');
+const S={y:2026,mo:8,menu:null,R:null,di:null,D:null,sel:null,edit:null,
+         mw:{cost:35,fair:70,skill:55}, dw:{cost:30,skill:55,zone:60}};
+
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; go(b.dataset.p);});
+function go(p){ [...$('#tabs').children].forEach(x=>x.setAttribute('aria-selected',x.dataset.p===p));
+  document.querySelectorAll('.panel').forEach(s=>s.classList.toggle('on',s.id==='p-'+p)); }
+[['mCost','mw','cost'],['mFair','mw','fair'],['mSkill','mw','skill'],
+ ['dCost','dw','cost'],['dSkill','dw','skill'],['dZone','dw','zone']].forEach(([id,g,k])=>{
+  $('#'+id).addEventListener('input',e=>{S[g][k]=+e.target.value; $('#'+id+'V').textContent=e.target.value;});
+});
+
+/* ── 月次 ── */
+$('#ym').addEventListener('change',()=>{ const [a,b]=$('#ym').value.split('-').map(Number);
+  S.y=a; S.mo=b; S.menu=buildMonth(a,b); S.R=null; S.D=null; S.di=null;
+  $('#date').value=`${a}-${String(b).padStart(2,'0')}-01`;
+  renderMenuTab(); $('#calTbl').innerHTML=''; $('#mDayTbl').innerHTML=''; $('#mVio').innerHTML='';
+  $('#mKpis').innerHTML='<div class="empty">「月次シフトを作成」を押してください。</div>'; });
+$('#runMonth').addEventListener('click',()=>{
+  const b=$('#runMonth'); b.textContent='計算中…'; b.disabled=true;
+  setTimeout(()=>{ S.R=solveMonth(S.y,S.mo,S.menu,S.mw); S.D=null; renderMonth();
+    b.textContent='月次シフトを作成'; b.disabled=false; go('month'); },30);
+});
+$('#runDay').addEventListener('click',()=>{
+  if(!S.R){ alert('先に月次シフトを作成してください。日次配置は月次の出勤者を前提に計算します。'); return; }
+  const d=new Date($('#date').value+'T00:00:00');
+  if(isNaN(d)||d.getFullYear()!==S.y||d.getMonth()+1!==S.mo){ alert('対象月の日付を選んでください。'); return; }
+  runDay(d.getDate()-1);
+});
+function runDay(di){
+  if(!S.R){ alert('献立を変更したため月次シフトが無効になりました。「月次シフトを作成」を押し直してください。'); go('month'); return; }
+  const b=$('#runDay'); b.textContent='計算中…'; b.disabled=true; go('day');
+  setTimeout(()=>{
+    S.di=di; const info=S.menu[di];
+    $('#date').value=`${S.y}-${String(S.mo).padStart(2,'0')}-${String(di+1).padStart(2,'0')}`;
+    if(info.closed){ S.D=null; renderDayClosed(info); }
+    else{ const roster={}; EMP.forEach(e=>{ if(S.R.cal[e.id][di]) roster[e.id]=S.R.cal[e.id][di]; });
+      S.D=solveDay(info,roster,S.dw); S.sel=null; renderDay(); }
+    b.textContent='日次配置を最適化'; b.disabled=false;
+  },30);
+}
+
+function renderMonth(){
+  const DS=monthDaySummary(S.menu,S.R), V=checkMonth(S.y,S.mo,S.menu,S.R);
+  const open=DS.filter(x=>!x.closed);
+  const need=open.reduce((a,x)=>a+x.need,0), got=open.reduce((a,x)=>a+x.got,0);
+  const gap=open.reduce((a,x)=>a+x.gap,0), cost=open.reduce((a,x)=>a+x.cost,0);
+  const meals=open.reduce((a,x)=>a+x.info.meals,0);
+  const hard=V.filter(v=>v.lv==='h').length, soft=V.filter(v=>v.lv==='m').length;
+  let days=0; EMP.forEach(e=>days+=S.R.st[e.id].days);
+  const K=[
+    {lb:'営業日',vl:open.length,u:'日',note:`日曜と夏季休業を除く`},
+    {lb:'総食数',vl:yen(meals),u:'食',note:`1日平均 ${yen(meals/open.length)}食`},
+    {lb:'必要人時',vl:need,u:'人時',note:'献立と食数から算出'},
+    {lb:'確保人時',vl:got,u:'人時',cls:got>=need?'good':'bad',note:`必要比 ${(got/need*100).toFixed(0)}%`},
+    {lb:'枠別の不足',vl:gap,u:'人時',cls:gap===0?'good':gap<80?'warn':'bad',note:'時間枠ごとの不足合計'},
+    {lb:'総出勤日数',vl:days,u:'人日',note:`上限計 ${EMP.reduce((a,e)=>a+e.maxDays,0)}人日`},
+    {lb:'月間人件費',vl:yen(cost),u:'円',note:`1食あたり ${(cost/meals).toFixed(1)}円`},
+    {lb:'労務違反',vl:hard,u:'件',cls:hard===0?'good':'bad',note:'ほか注意 '+soft+' 件'},
+  ];
+  $('#mKpis').innerHTML=K.map(k=>`<div class="kpi ${k.cls||''}"><div class="lb">${k.lb}</div><div class="vl num">${k.vl}<em>${k.u}</em></div><div class="note">${k.note}</div></div>`).join('');
+
+  $('#calLegend').innerHTML=Object.entries(BANDS).map(([k,b])=>{
+    const [h,l]=b['パート'];
+    return `<span><b>${b.ab}</b> ${b.name}（社員 ${BANDS[k]['社員'][0]}:00〜／パート ${h}:00〜${h+l}:00）</span>`;
+  }).join('')+'<span style="color:var(--dang)"><b>希</b> 希望休</span><span style="color:var(--ink3)">空欄＝公休</span>';
+
+  const nd=S.menu.length;
+  let h='<thead><tr><th class="emp">従業員（主工程・区分）</th>';
+  S.menu.forEach(i=>{ const c=i.closed?'cls':i.dow===0?'sun':i.dow===6?'sat':'';
+    h+=`<th class="dd ${c}" data-d="${i.d-1}" style="cursor:pointer" title="${i.closed?(i.summer?'夏季休業':'定休'):i.meals+'食／'+RECIPEM[MENU_PAT[i.pat][0]].name}">${i.d}<br>${DOW_JA[i.dow]}</th>`; });
+  h+='<th class="dd">出勤</th><th class="dd">実働</th><th class="dd">人件費</th></tr></thead><tbody>';
+  const order=[...EMP].sort((a,b)=>PROCS.findIndex(p=>p.id===a.home)-PROCS.findIndex(p=>p.id===b.home)
+    ||['社員','パート','アルバイト'].indexOf(a.type)-['社員','パート','アルバイト'].indexOf(b.type)||a.id.localeCompare(b.id));
+  order.forEach(e=>{
+    const st=S.R.st[e.id];
+    h+=`<tr><td class="emp"><div style="font-weight:700">${esc(e.name)} <span style="color:var(--ink3);font-weight:400">${e.id}</span></div>
+      <div style="font-size:9px;color:var(--ink3)">${PROCM[e.home].name}／${e.type}／${e.bands.join('')}${e.minor?'／<span style="color:var(--dang)">18歳未満</span>':''}</div></td>`;
+    for(let d=0;d<nd;d++){ const i=S.menu[d], b=S.R.cal[e.id][d];
+      if(i.closed) h+='<td class="dc cls">–</td>';
+      else if(b) h+=`<td class="dc ${b}" title="${BANDS[b].name} ${BANDS[b][e.type][0]}:00〜">${BANDS[b].ab}</td>`;
+      else if(S.R.wish[e.id].has(d+1)) h+='<td class="dc req">希</td>';
+      else h+='<td class="dc off">・</td>';
+    }
+    const over=st.days>e.maxDays;
+    h+=`<td class="dc" style="background:#F7F9F9;color:${over?'var(--dang)':'inherit'}">${st.days}/${e.maxDays}</td>
+        <td class="dc" style="background:#F7F9F9">${st.hours}h</td><td class="dc num" style="background:#F7F9F9">${yen(st.cost)}</td></tr>`;
+  });
+  const t=$('#calTbl'); t.innerHTML=h+'</tbody>';
+  t.querySelectorAll('th.dd[data-d]').forEach(el=>el.onclick=()=>runDay(+el.dataset.d));
+
+  let h2='<thead><tr><th>日</th><th>曜</th><th>献立</th><th style="text-align:right">食数</th><th style="text-align:right">必要人時</th>'
+    +'<th style="text-align:right">確保人時</th><th style="text-align:right">充足</th><th style="text-align:right">枠別不足</th>'
+    +'<th style="text-align:right">出勤</th><th>早/中/遅/盛</th><th style="text-align:right">人件費</th><th style="text-align:right">1食あたり</th><th></th></tr></thead><tbody>';
+  DS.forEach((x,d)=>{
+    if(x.closed){ h2+=`<tr style="background:#F4F6F6;color:var(--ink3)"><td class="num">${x.info.d}</td><td>${DOW_JA[x.info.dow]}</td><td colspan="11">${x.info.summer?'夏季休業':'定休'}</td></tr>`; return; }
+    const fr=x.got/x.need*100;
+    h2+=`<tr><td class="num">${x.info.d}</td><td style="color:${x.info.dow===6?'var(--acc)':'inherit'}">${DOW_JA[x.info.dow]}</td>
+    <td style="white-space:nowrap">${esc(RECIPEM[MENU_PAT[x.info.pat][0]].name)} ほか</td>
+    <td class="num" style="text-align:right">${yen(x.info.meals)}</td>
+    <td class="num" style="text-align:right">${x.need}</td><td class="num" style="text-align:right">${x.got}</td>
+    <td class="num" style="text-align:right;font-weight:800;color:${fr>=100?'var(--ok)':fr>=92?'var(--warn)':'var(--dang)'}">${fr.toFixed(0)}%</td>
+    <td class="num" style="text-align:right;color:${x.gap?'var(--dang)':'var(--ink3)'}">${x.gap}</td>
+    <td class="num" style="text-align:right">${x.n}</td><td class="num">${x.byBand.A}/${x.byBand.B}/${x.byBand.C}/${x.byBand.D||0}</td>
+    <td class="num" style="text-align:right">${yen(x.cost)}</td><td class="num" style="text-align:right">${(x.cost/x.info.meals).toFixed(1)}円</td>
+    <td><button class="btn" data-d="${d}" style="padding:2px 8px">日次</button></td></tr>`;
+  });
+  const t2=$('#mDayTbl'); t2.innerHTML=h2+'</tbody>';
+  t2.querySelectorAll('button[data-d]').forEach(b=>b.onclick=()=>runDay(+b.dataset.d));
+  $('#mVio').innerHTML=V.length
+    ? V.map(v=>`<li><span class="lv ${v.lv}">${v.lv==='h'?'重大':v.lv==='m'?'注意':'情報'}</span><span>${esc(v.t)}</span></li>`).join('')
+    : '<li class="none">労基法・社内規程上の違反は検出されませんでした。</li>';
+}
+
+/* ── 日次 ── */
+function renderDayClosed(info){
+  $('#dKpis').innerHTML=`<div class="empty">${info.d}日は${info.summer?'夏季休業':'定休'}です。</div>`;
+  ['#dMenuTbl','#dChkTbl','#dGridTbl','#dGanttTbl','#dProcTbl'].forEach(s=>$(s).innerHTML='');
+  $('#dVio').innerHTML=''; $('#menuSub').textContent=''; $('#detail').textContent='';
+}
+function renderDay(){
+  const {T,asg,AR}=S.D, info=S.menu[S.di];
+  const g=buildGrid(asg,T), M=dayPenalty(asg,T,0.004+S.dw.cost*0.0006,20+S.dw.zone*1.6,AR);
+  const V=checkDay(info,asg,T,AR), hard=V.filter(v=>v.lv==='h').length, soft=V.filter(v=>v.lv==='m').length;
+  const L=leadOK(g,T);
+  let skS=0,skN=0; T.forEach(t=>{ if(!t.recipe)return; for(let s=0;s<NS;s++) g[t.id][s].forEach(id=>{skS+=EMPM[id].rs[t.recipe]||0;skN++;}); });
+  const K=[
+    {lb:'食数',vl:yen(info.meals),u:'食',note:`${DOW_JA[info.dow]}曜／献立パターン${info.pat+1}`},
+    {lb:'出勤者',vl:Object.keys(asg).length,u:'名',note:'月次シフトで確定した人員'},
+    {lb:'人時充足率',vl:(M.mh/M.need*100).toFixed(0),u:'%',cls:M.mh>=M.need?'good':'bad',note:`必要 ${M.need} / 配置 ${M.mh}`},
+    {lb:'枠別の不足',vl:M.short,u:'人時',cls:M.short===0?'good':M.short<12?'warn':'bad',note:'タスク×時間枠の不足'},
+    {lb:'過剰配置',vl:M.over,u:'人時',cls:M.over<20?'good':'warn',note:'勤務帯が固定長のため生じる余剰'},
+    {lb:'必置資格の穴',vl:M.qgap,u:'枠',cls:M.qgap===0?'good':'bad',note:`当日有効な要件 ${AR.length} 件`},
+    {lb:'レシピ責任者',vl:Object.values(L).filter(x=>x).length+'/'+Object.keys(L).length,u:'',cls:M.lgap===0?'good':'bad',note:'習熟度が難易度以上の担当者'},
+    {lb:'ゾーン往復',vl:M.zone,u:'件',cls:M.zone===0?'good':'warn',note:'更衣を挟まない区域移動'},
+    {lb:'平均習熟度',vl:(skN?skS/skN:0).toFixed(2),u:'/5',note:'レシピ作業の加重平均'},
+    {lb:'当日人件費',vl:yen(M.cost),u:'円',note:`1食あたり ${(M.cost/info.meals).toFixed(1)}円`},
+    {lb:'制約違反',vl:hard,u:'件',cls:hard===0?'good':'bad',note:'ほか注意 '+soft+' 件'},
+  ];
+  $('#dKpis').innerHTML=K.map(k=>`<div class="kpi ${k.cls||''}"><div class="lb">${k.lb}</div><div class="vl num">${k.vl}<em>${k.u}</em></div><div class="note">${k.note}</div></div>`).join('');
+
+  const al=new Set(); T.forEach(t=>t.al.forEach(a=>al.add(a)));
+  $('#menuSub').textContent=`${S.mo}月${info.d}日（${DOW_JA[info.dow]}）／特定原材料等：${[...al].join('、')||'なし'}`;
+  let hm='<thead><tr><th>区分</th><th>品目</th><th>工程</th><th style="text-align:center">難易度</th><th style="text-align:right">標準人時/100食</th>'
+    +'<th style="text-align:right">必要人時</th><th>作業時間帯</th><th style="text-align:center">責任者</th><th>特定原材料等</th></tr></thead><tbody>';
+  T.filter(t=>t.recipe).forEach(t=>{
+    const p=PROCM[t.proc], ok=L[t.recipe];
+    const who=[]; t.slots.forEach(s=>g[t.id][s].forEach(id=>{ if((EMPM[id].rs[t.recipe]||0)>=t.diff&&!who.includes(id)) who.push(id); }));
+    hm+=`<tr><td>${t.cat}</td><td><b>${esc(t.name)}</b></td>
+    <td style="white-space:nowrap"><span class="zchip" style="background:${ZONES[p.zone].color}">${p.name}</span></td>
+    <td style="text-align:center;font-weight:800">${t.diff}</td>
+    <td class="num" style="text-align:right">${RECIPEM[t.recipe].mh.toFixed(2)}</td>
+    <td class="num" style="text-align:right">${t.mh.toFixed(1)}</td>
+    <td class="num">${HOURS[t.slots[0]]}:00–${HOURS[t.slots[t.slots.length-1]]+1}:00</td>
+    <td style="text-align:center;color:${ok?'var(--ok)':'var(--dang)'};font-weight:800">${ok?'✓ '+who.map(id=>esc(EMPM[id].name)).join('・'):'不在'}</td>
+    <td><div class="tags">${t.al.map(a=>`<span class="tag al">${esc(a)}</span>`).join('')||'—'}</div></td></tr>`;
+  });
+  $('#dMenuTbl').innerHTML=hm+'</tbody>';
+
+  /* 点検帯 */
+  let hc='<thead><tr><th class="lbl">必置要件（当日有効なもののみ）</th>'+HOURS.map(x=>`<th class="hh">${x}</th>`).join('')+'</tr></thead><tbody>';
+  const sp=slotProcPeople(asg,T);
+  AR.forEach(r=>{ const q=QUALS[r.qual];
+    hc+=`<tr><td class="lbl"><span class="badge ${q.type==='公的'?'pub':'int'}">${q.type}</span> ${esc(r.label)}
+      <div style="font-size:9px;color:var(--ink3)">${esc(r.note)}／根拠：${esc(q.law)}</div></td>`;
+    for(let s=0;s<NS;s++){
+      if(!r.slotSet.has(s)){ hc+='<td class="q na">–</td>'; continue; }
+      const n=qualOK(sp,r,s);
+      hc+=`<td class="q ${n>=r.count?'y':'n'}" title="${HOURS[s]}:00台 有資格者${n}名">${n>=r.count?'✓':n}</td>`;
+    }
+    hc+='</tr>';
+  });
+  $('#dChkTbl').innerHTML=hc+'</tbody>';
+
+  /* タスク×時間枠 */
+  let hg='<thead><tr><th class="lbl">タスク（衛生区域）</th>'+HOURS.map(x=>`<th class="hh">${x}</th>`).join('')+'<th class="hh">必要</th></tr></thead><tbody>';
+  T.forEach(t=>{ const p=PROCM[t.proc];
+    hg+=`<tr><td class="lbl"><span class="zbar" style="background:${ZONES[p.zone].color}"></span>
+      <span style="font-weight:700">${esc(t.name)}</span>
+      <div style="font-size:9px;color:var(--ink3);padding-left:11px">${p.name}${t.recipe?'／難易度'+t.diff:''}${t.opt?'／任意':''}</div></td>`;
+    for(let s=0;s<NS;s++){ const n=g[t.id][s].length,q=t.need[s];
+      const cls=t.opt?(n?'over':'zero'):q===0&&n===0?'zero':n<q?'short':n>q?'over':'ok';
+      hg+=`<td class="cell ${cls}${S.sel&&S.sel.t===t.id&&S.sel.s===s?' sel':''}" data-t="${t.id}" data-s="${s}">
+        <div class="n num">${n||''}</div><div class="d num">${t.opt?'':'/'+q}</div></td>`;
+    }
+    hg+=`<td class="hh num" style="font-weight:800">${t.opt?'—':t.mh.toFixed(0)}</td></tr>`;
+  });
+  const gt=$('#dGridTbl'); gt.innerHTML=hg+'</tbody>';
+  gt.onclick=e=>{ const c=e.target.closest('td.cell'); if(!c)return; S.sel={t:c.dataset.t,s:+c.dataset.s}; renderDay(); };
+  renderDetail();
+
+  /* 個人別ガント */
+  const tm={}; T.forEach(t=>tm[t.id]=t);
+  const order=Object.keys(asg).sort((a,b)=>asg[a].start-asg[b].start
+    ||PROCS.findIndex(p=>p.id===EMPM[a].home)-PROCS.findIndex(p=>p.id===EMPM[b].home)||a.localeCompare(b));
+  let hh='<thead><tr><th class="emp">従業員（勤務帯）</th>'+HOURS.map(x=>`<th class="hh">${x}</th>`).join('')+'<th class="hh">実働</th></tr></thead><tbody>';
+  order.forEach(id=>{ const e=EMPM[id], sh=asg[id];
+    hh+=`<tr><td class="emp"><div style="font-weight:700">${esc(e.name)} <span style="color:var(--ink3);font-weight:400">${id}</span></div>
+      <div style="font-size:9px;color:var(--ink3)">${BANDS[sh.band].name}／${e.type}／¥${e.wage}${e.minor?'／<span style="color:var(--dang)">18歳未満</span>':''}</div></td>`;
+    for(let s=0;s<NS;s++){ const tid=sh.alloc[s];
+      if(tid&&tm[tid]){ const t=tm[tid], p=PROCM[t.proc];
+        const lead=t.recipe&&(e.rs[t.recipe]||0)>=t.diff;
+        const lbl=t.recipe?t.name.slice(0,3):p.ab;
+        hh+=`<td class="g"><span class="mag${lead?' lead':''}" style="background:${ZONES[p.zone].color}" data-id="${id}" data-s="${s}"
+          title="${esc(e.name)}／${esc(t.name)}／${ZONES[p.zone].name}／習熟${skillFor(e,t)}　クリックで変更">${esc(lbl)}</span></td>`;
+      } else if(sh.breaks.includes(s)) hh+=`<td class="g"><span class="mag brk" data-id="${id}" data-s="${s}" title="休憩">休</span></td>`;
+      else hh+='<td class="g"></td>';
+    }
+    hh+=`<td class="hh num" style="font-weight:800">${Object.keys(sh.alloc).length}h</td></tr>`;
+  });
+  const ga=$('#dGanttTbl'); ga.innerHTML=hh+'</tbody>';
+  ga.onclick=e=>{ const m=e.target.closest('.mag'); if(!m)return; openEdit(m.dataset.id,+m.dataset.s); };
+  $('#dLegend').innerHTML=Object.entries(ZONES).map(([k,z])=>`<span><i style="background:${z.color}"></i>${z.name}</span>`).join('')
+    +'<span><i style="background:#DCE0E1"></i>休憩</span><span style="color:var(--ink3)">札の黄点＝そのレシピの責任者</span>';
+
+  /* 工程別サマリ */
+  let hp='<thead><tr><th>工程</th><th>衛生区域</th><th style="text-align:right">必要人時</th><th style="text-align:right">配置人時</th>'
+    +'<th style="text-align:right">充足</th><th style="text-align:right">不足</th><th style="text-align:right">平均スキル</th>'
+    +'<th style="text-align:right">人件費</th><th style="text-align:right">資格の穴</th><th style="text-align:right">関与人数</th></tr></thead><tbody>';
+  PROCS.forEach(p=>{
+    const ts=T.filter(t=>t.proc===p.id); if(!ts.length) return;
+    let need=0,mh=0,cost=0,skS=0,skN=0,short=0; const ppl=new Set();
+    ts.forEach(t=>{ for(let s=0;s<NS;s++){ const n=g[t.id][s].length;
+      if(!t.opt){ need+=t.need[s]; short+=Math.max(0,t.need[s]-n); }
+      mh+=n; g[t.id][s].forEach(id=>{cost+=EMPM[id].wage;skS+=skillFor(EMPM[id],t);skN++;ppl.add(id);}); }});
+    let qg=0; AR.filter(r=>r.scope==='proc'&&r.procs.includes(p.id)).forEach(r=>r.slots.forEach(s=>{if(qualOK(sp,r,s)<r.count)qg++;}));
+    const fr=need?mh/need*100:100;
+    hp+=`<tr><td style="white-space:nowrap"><span class="zbar" style="background:${ZONES[p.zone].color};height:12px;vertical-align:-2px"></span><b>${p.name}</b></td>
+    <td><span class="zchip" style="background:${ZONES[p.zone].color}">${ZONES[p.zone].name}</span></td>
+    <td class="num" style="text-align:right">${need||'—'}</td><td class="num" style="text-align:right">${mh}</td>
+    <td class="num" style="text-align:right;font-weight:800;color:${fr>=100?'var(--ok)':fr>=92?'var(--warn)':'var(--dang)'}">${need?fr.toFixed(0)+'%':'—'}</td>
+    <td class="num" style="text-align:right;color:${short?'var(--dang)':'var(--ink3)'}">${short}</td>
+    <td class="num" style="text-align:right">${(skN?skS/skN:0).toFixed(2)}</td>
+    <td class="num" style="text-align:right">&yen;${yen(cost)}</td>
+    <td class="num" style="text-align:right;font-weight:800;color:${qg?'var(--dang)':'var(--ok)'}">${qg}</td>
+    <td class="num" style="text-align:right">${ppl.size}名</td></tr>`;
+  });
+  $('#dProcTbl').innerHTML=hp+'</tbody>';
+
+  $('#dVio').innerHTML=V.length
+    ? V.map(v=>`<li><span class="lv ${v.lv}">${v.lv==='h'?'重大':'注意'}</span><span>${esc(v.t)}</span></li>`).join('')
+    : '<li class="none">ハード制約・注意事項とも検出されませんでした。</li>';
+}
+
+function renderDetail(){
+  const box=$('#detail');
+  if(!S.sel||!S.D){ box.innerHTML='セルをクリックすると、そのタスク・時間枠の担当者と習熟度を表示します。'; return; }
+  const {T,asg,AR}=S.D, t=T.find(x=>x.id===S.sel.t), s=S.sel.s;
+  if(!t){ box.innerHTML=''; return; }
+  const g=buildGrid(asg,T), ids=g[t.id][s], p=PROCM[t.proc], sp=slotProcPeople(asg,T);
+  let h=`<div class="dh"><span class="zchip" style="background:${ZONES[p.zone].color}">${ZONES[p.zone].name}</span>
+    ${esc(t.name)}　${HOURS[s]}:00–${HOURS[s]+1}:00　配置 ${ids.length}名${t.opt?'':' / 必要 '+t.need[s]+'名'}
+    ${t.recipe?`　難易度 ${t.diff}`:''}</div>`;
+  if(!ids.length) h+='<div style="color:var(--dang);font-weight:700">配置なし</div>';
+  else h+='<table class="mini"><tbody>'+ids.map(id=>{ const e=EMPM[id], sk=skillFor(e,t);
+    return `<tr><td style="width:130px"><b>${esc(e.name)}</b> <span style="color:var(--ink3)">${id}</span></td>
+    <td style="width:64px">${e.type}</td>
+    <td style="width:96px">${t.recipe?'習熟度':'工程スキル'} <span class="rs v${sk}">${sk}</span>${t.recipe&&sk>=t.diff?' <span style="color:var(--ok);font-weight:800">責任者</span>':''}</td>
+    <td><div class="tags">${e.quals.map(q=>`<span class="tag ${QUALS[q].type==='公的'?'pub':''}">${esc(QUALS[q].name)}</span>`).join('')||'<span style="color:var(--ink3)">資格登録なし</span>'}</div></td></tr>`;
+  }).join('')+'</tbody></table>';
+  const rs=AR.filter(r=>r.slotSet.has(s)&&(r.scope==='plant'||r.procs.includes(t.proc)));
+  if(rs.length) h+='<div style="margin-top:7px;font-size:11px">この枠に関わる必置要件：'+rs.map(r=>{
+    const ok=qualOK(sp,r,s)>=r.count;
+    return `<span class="tag" style="background:${ok?'#E8F0EC':'#F7E3E1'};border-color:${ok?'#BBD3C6':'#E0B4AE'}">${ok?'✓':'未充足'} ${esc(QUALS[r.qual].name)}</span>`;
+  }).join(' ')+'</div>';
+  box.innerHTML=h;
+}
+
+/* ── 手修正 ── */
+function openEdit(id,s){
+  S.edit={id,s}; const {T,asg}=S.D, e=EMPM[id], sh=asg[id];
+  $('#emTitle').textContent=`${e.name}（${id}）／${HOURS[s]}:00–${HOURS[s]+1}:00`;
+  const opts=T.filter(t=>skillFor(e,t)>=1&&(t.need[s]>0||t.opt||sh.alloc[s]===t.id))
+    .map(t=>`<option value="${t.id}" ${sh.alloc[s]===t.id?'selected':''}>${esc(t.name)}（${t.recipe?'習熟度':'スキル'} ${skillFor(e,t)}）</option>`).join('');
+  $('#emTask').innerHTML=opts+'<option value="__brk">休憩にする</option><option value="__off">この枠の配置を外す</option>';
+  $('#emHint').textContent='担当できるのは、この従業員に習熟度または工程スキルが登録されているタスクだけです。'
+    +(sh.len>=6?' 6時間超の勤務なので、休憩を外すと制約違反として検出されます。':'');
+  $('#editModal').classList.add('on');
+}
+$('#emCancel').onclick=()=>$('#editModal').classList.remove('on');
+$('#emApply').onclick=()=>{
+  const {id,s}=S.edit, v=$('#emTask').value, sh=S.D.asg[id];
+  if(v==='__brk'){ delete sh.alloc[s]; if(!sh.breaks.includes(s)) sh.breaks.push(s); }
+  else if(v==='__off'){ delete sh.alloc[s]; sh.breaks=sh.breaks.filter(x=>x!==s);
+    if(!Object.keys(sh.alloc).length) delete S.D.asg[id]; }
+  else { sh.alloc[s]=v; sh.breaks=sh.breaks.filter(x=>x!==s); }
+  $('#editModal').classList.remove('on'); renderDay();
+};
+$('#dAddBtn').onclick=()=>{
+  if(!S.D) return;
+  const off=EMP.filter(e=>!S.D.asg[e.id]);
+  if(!off.length){ alert('未配置の従業員がいません。'); return; }
+  $('#adEmp').innerHTML=off.map(e=>`<option value="${e.id}">${e.name}（${e.id}／${PROCM[e.home].name}／${e.type}／勤務帯${e.bands.join('')}）</option>`).join('');
+  fillAdd(); $('#addModal').classList.add('on');
+};
+$('#adEmp').onchange=fillAdd;
+function fillAdd(){
+  const e=EMPM[$('#adEmp').value];
+  $('#adBand').innerHTML=e.bands.map(b=>{const [h,l]=BANDS[b][e.type];
+    return `<option value="${b}">${BANDS[b].name}　${h}:00–${h+l}:00</option>`;}).join('');
+  const d=S.di!==null?S.menu[S.di]:null;
+  const wish=S.R&&d?S.R.wish[e.id].has(d.d):false;
+  $('#adHint').textContent=`月間出勤 ${S.R?S.R.st[e.id].days:0}/${e.maxDays}日`
+    +(wish?'　※当日は希望休として登録されています':'')+(e.minor?'　※18歳未満のため5時前は配置できません':'');
+}
+$('#adCancel').onclick=()=>$('#addModal').classList.remove('on');
+$('#adApply').onclick=()=>{
+  const e=EMPM[$('#adEmp').value], band=$('#adBand').value, sh=shiftOf(e,band);
+  if(e.minor&&sh.h0<5){ alert('18歳未満のため5時前の勤務には就けません。'); return; }
+  const {T,asg}=S.D, g=buildGrid(asg,T), sp=slotProcPeople(asg,T), alloc={};
+  sh.slots.forEach(s=>{ let bt=null,bv=-1e9;
+    T.forEach(t=>{ if(t.opt)return; if(t.need[s]===0)return; const sk=skillFor(e,t); if(sk<1)return;
+      let v=(g[t.id][s].length<t.need[s]?150:0)+sk*8;
+      S.D.AR.forEach(r=>{ if(r.slotSet.has(s)&&(r.scope==='plant'||r.procs.includes(t.proc))&&e.quals.includes(r.qual)&&qualOK(sp,r,s)<r.count) v+=400; });
+      if(v>bv){bv=v;bt=t.id;} });
+    if(bt) alloc[s]=bt;
+  });
+  if(!Object.keys(alloc).length){ alert('この従業員が担当できるタスクが、この勤務帯にありません。'); return; }
+  asg[e.id]={band,start:sh.start,len:sh.len,breaks:sh.breaks,alloc};
+  $('#addModal').classList.remove('on'); renderDay();
+};
+
+/* ── 献立タブ ── */
+function renderMenuTab(){
+  let h='<thead><tr><th>日</th><th>曜</th><th style="text-align:right">食数</th><th>献立パターン</th><th>主菜</th><th>副菜</th><th>米飯</th><th>汁物</th>'
+    +'<th style="text-align:center">最高難易度</th><th style="text-align:right">必要人時</th><th>特定原材料等</th></tr></thead><tbody>';
+  S.menu.forEach((i,d)=>{
+    if(i.closed){ h+=`<tr style="background:#F4F6F6;color:var(--ink3)"><td class="num">${i.d}</td><td>${DOW_JA[i.dow]}</td><td colspan="9">${i.summer?'夏季休業':'定休'}</td></tr>`; return; }
+    const ids=MENU_PAT[i.pat], rs=ids.map(x=>RECIPEM[x]);
+    const T=buildTasks(i), need=demandBySlot(T).reduce((a,v)=>a+v,0);
+    const mx=Math.max(...rs.map(r=>r.diff));
+    const al=[...new Set(rs.flatMap(r=>r.al))];
+    const by=c=>rs.filter(r=>r.cat===c).map(r=>esc(r.name)).join('、')||'—';
+    h+=`<tr><td class="num">${i.d}</td><td style="color:${i.dow===6?'var(--acc)':'inherit'}">${DOW_JA[i.dow]}</td>
+    <td style="text-align:right"><input type="number" min="0" max="6000" step="50" value="${i.meals}" data-d="${d}" data-k="meals"
+      style="width:64px;text-align:right;border:1px solid var(--line2);border-radius:2px;padding:2px 4px;font-variant-numeric:tabular-nums"></td>
+    <td><select data-d="${d}" data-k="pat" style="border:1px solid var(--line2);border-radius:2px;padding:2px 4px">
+      ${MENU_PAT.map((p,k)=>`<option value="${k}" ${k===i.pat?'selected':''}>P${k+1}　${esc(RECIPEM[p[0]].name)}</option>`).join('')}</select></td>
+    <td>${by('主菜')}</td><td>${by('副菜')}</td><td>${by('米飯')}</td><td>${by('汁物')}</td>
+    <td style="text-align:center;font-weight:800;color:${mx>=5?'var(--dang)':mx>=4?'var(--warn)':'inherit'}">${mx}</td>
+    <td class="num" style="text-align:right">${need}</td>
+    <td><div class="tags">${al.map(a=>`<span class="tag al">${esc(a)}</span>`).join('')||'—'}</div></td></tr>`;
+  });
+  const t=$('#menuTbl'); t.innerHTML=h+'</tbody>';
+  t.oninput=t.onchange=ev=>{ const el=ev.target; if(!el.dataset.k)return;
+    const d=+el.dataset.d;
+    if(el.dataset.k==='meals') S.menu[d].meals=Math.max(0,Math.min(6000,+el.value||0));
+    else S.menu[d].pat=+el.value;
+    S.R=null; S.D=null; S.di=null;
+    $('#mKpis').innerHTML='<div class="empty">献立を変更しました。「月次シフトを作成」を押し直してください。</div>';
+    ['#calTbl','#mDayTbl','#mVio','#dChkTbl','#dGridTbl','#dGanttTbl','#dProcTbl','#dMenuTbl','#dVio'].forEach(q=>$(q).innerHTML='');
+    $('#dKpis').innerHTML='<div class="empty">月次シフトを作り直してから日次配置を計算してください。</div>';
+    renderMenuTab();
+  };
+}
+
+/* ── レシピタブ ── */
+function renderRecipe(){
+  let h='<thead><tr><th>区分</th><th>品目</th><th>工程</th><th>衛生区域</th><th style="text-align:center">難易度</th>'
+    +'<th style="text-align:right">標準人時/100食</th><th>作業時間帯</th><th style="text-align:center">対応可能者</th><th>対応可能者の内訳</th><th>特定原材料等</th></tr></thead><tbody>';
+  RECIPES.forEach(r=>{ const p=PROCM[r.proc];
+    const able=EMP.filter(e=>e.rs[r.id]>=r.diff);
+    const some=EMP.filter(e=>e.rs[r.id]>=1).length;
+    h+=`<tr><td>${r.cat}</td><td><b>${esc(r.name)}</b></td><td>${p.name}</td>
+    <td><span class="zchip" style="background:${ZONES[p.zone].color}">${ZONES[p.zone].name}</span></td>
+    <td style="text-align:center;font-weight:800;color:${r.diff>=5?'var(--dang)':r.diff>=4?'var(--warn)':'inherit'}">${r.diff}</td>
+    <td class="num" style="text-align:right">${r.mh.toFixed(2)}</td><td class="num">${r.w[0]}:00–${r.w[1]+1}:00</td>
+    <td style="text-align:center;font-weight:800;color:${able.length<=3?'var(--dang)':able.length<=5?'var(--warn)':'inherit'}">${able.length}名</td>
+    <td style="font-size:11px">責任者${able.length}名／作業可 ${some}名<div style="color:var(--ink3)">${able.slice(0,6).map(e=>esc(e.name)).join('、')}</div></td>
+    <td><div class="tags">${r.al.map(a=>`<span class="tag al">${esc(a)}</span>`).join('')||'—'}</div></td></tr>`;
+  });
+  $('#recipeTbl').innerHTML=h+'</tbody>';
+
+  $('#rsFilter').innerHTML='<option value="">全員</option>'+PROCS.filter(p=>p.id!=='cw').map(p=>`<option value="${p.id}">主工程が${p.name}</option>`).join('')
+    +'<option value="__lead">いずれかのレシピで責任者になれる人</option>';
+  const draw=()=>{
+    const f=$('#rsFilter').value, tx=$('#rsText').value.trim();
+    let rows=EMP.filter(e=>(!tx||e.name.includes(tx)||e.id.toLowerCase().includes(tx.toLowerCase())));
+    if(f==='__lead') rows=rows.filter(e=>RECIPES.some(r=>e.rs[r.id]>=r.diff));
+    else if(f) rows=rows.filter(e=>e.home===f);
+    let h2='<thead><tr><th class="lbl">従業員</th>'+RECIPES.map(r=>`<th class="hh" title="${esc(r.name)}／難易度${r.diff}">${esc(r.name.slice(0,4))}<br><span style="color:var(--ink3)">難${r.diff}</span></th>`).join('')+'</tr></thead><tbody>';
+    rows.forEach(e=>{
+      h2+=`<tr><td class="lbl"><b>${esc(e.name)}</b> <span style="color:var(--ink3);font-weight:400">${e.id}</span>
+        <div style="font-size:9px;color:var(--ink3)">${PROCM[e.home].name}／${e.type}</div></td>`;
+      RECIPES.forEach(r=>{ const v=e.rs[r.id]||0;
+        h2+=`<td style="text-align:center;padding:2px"><span class="rs v${v}" data-e="${e.id}" data-r="${r.id}"
+          style="${v>=r.diff?'box-shadow:0 0 0 2px var(--acc) inset':''}" title="${esc(e.name)}／${esc(r.name)}　習熟度${v}／難易度${r.diff}">${v}</span></td>`; });
+      h2+='</tr>';
+    });
+    const t=$('#rsTbl'); t.innerHTML=h2+'</tbody>';
+    t.onclick=ev=>{ const c=ev.target.closest('.rs'); if(!c||!c.dataset.e)return;
+      const e=EMPM[c.dataset.e]; e.rs[c.dataset.r]=(e.rs[c.dataset.r]+1)%6; draw(); renderRecipe0(); };
+  };
+  window.__rsDraw=draw;
+  $('#rsFilter').onchange=draw; $('#rsText').oninput=draw; draw();
+}
+function renderRecipe0(){ /* 習熟度を変えたら対応可能者数を更新する */
+  const cur=$('#rsFilter').value, tx=$('#rsText').value;
+  renderRecipe(); $('#rsFilter').value=cur; $('#rsText').value=tx; window.__rsDraw();
+}
+
+/* ── 従業員タブ ── */
+function renderEmp(){
+  $('#fProc').innerHTML='<option value="">すべて</option>'+PROCS.filter(p=>p.id!=='cw').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  $('#fType').innerHTML='<option value="">すべて</option>'+['社員','パート','アルバイト'].map(t=>`<option>${t}</option>`).join('');
+  $('#fQual').innerHTML='<option value="">すべて</option>'+Object.entries(QUALS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+  $('#fBand').innerHTML='<option value="">すべて</option>'+Object.entries(BANDS).map(([k,b])=>`<option value="${k}">${b.name}</option>`).join('');
+  const skBar=v=>{let s='<span class="sk">';for(let i=1;i<=5;i++)s+=`<i class="${i<=v?'on'+(v>=4?' hi':''):''}"></i>`;return s+'</span>';};
+  const draw=()=>{
+    const fp=$('#fProc').value,ft=$('#fType').value,fq=$('#fQual').value,fb=$('#fBand').value,tx=$('#fText').value.trim();
+    const rows=EMP.filter(e=>(!fp||e.home===fp||(e.sk[fp]||0)>=1)&&(!ft||e.type===ft)&&(!fq||e.quals.includes(fq))
+      &&(!fb||e.bands.includes(fb))&&(!tx||e.name.includes(tx)||e.id.toLowerCase().includes(tx.toLowerCase())));
+    $('#empCount').textContent=`${rows.length} / ${EMP.length} 名を表示`;
+    let h='<thead><tr><th>ID</th><th>氏名</th><th>区分</th><th>主工程</th>'
+      +PROCS.filter(p=>p.id!=='cw').map(p=>`<th style="text-align:center">${p.ab}</th>`).join('')
+      +'<th style="text-align:center">責任者<br>可レシピ</th><th>保有資格</th><th>勤務帯</th><th style="text-align:right">月上限</th><th style="text-align:right">時給</th></tr></thead><tbody>';
+    rows.forEach(e=>{
+      const lead=RECIPES.filter(r=>e.rs[r.id]>=r.diff);
+      h+=`<tr><td class="num">${e.id}</td><td style="white-space:nowrap"><b>${esc(e.name)}</b>${e.minor?' <span class="badge" style="background:var(--dang);color:#fff">18歳未満</span>':''}</td>
+      <td>${e.type}</td><td style="white-space:nowrap"><span class="zbar" style="background:${ZONES[PROCM[e.home].zone].color};height:11px;vertical-align:-1px;margin-right:5px"></span>${PROCM[e.home].name}</td>`;
+      PROCS.filter(p=>p.id!=='cw').forEach(p=>{const v=e.sk[p.id]||0;
+        h+=`<td style="text-align:center">${v?skBar(v):'<span style="color:#D6DADB">—</span>'}</td>`;});
+      h+=`<td style="text-align:center;font-weight:800;color:${lead.length?'var(--acc)':'var(--ink3)'}" title="${lead.map(r=>esc(r.name)).join('、')}">${lead.length}</td>
+      <td><div class="tags">${e.quals.map(q=>`<span class="tag ${QUALS[q].type==='公的'?'pub':''}">${esc(QUALS[q].name)}</span>`).join('')||'<span style="color:var(--ink3)">—</span>'}</div></td>
+      <td class="num" style="white-space:nowrap">${e.bands.map(b=>BANDS[b].ab).join('')}</td>
+      <td class="num" style="text-align:right">${e.maxDays}日</td><td class="num" style="text-align:right">&yen;${e.wage}</td></tr>`;
+    });
+    $('#empTbl').innerHTML=h+'</tbody>';
+  };
+  ['#fProc','#fType','#fQual','#fBand'].forEach(s=>$(s).onchange=draw);
+  $('#fText').oninput=draw;
+  $('#fClear').onclick=()=>{['#fProc','#fType','#fQual','#fBand','#fText'].forEach(s=>$(s).value='');draw();};
+  draw();
+}
+
+/* ── 必置資格タブ ── */
+function renderReq(){
+  let h='<thead><tr><th>区分</th><th>資格</th><th>根拠</th><th>適用範囲</th><th>対象時間帯</th><th style="text-align:center">必置</th><th>趣旨</th><th style="text-align:center">保有者</th></tr></thead><tbody>';
+  REQS.forEach(r=>{ const q=QUALS[r.qual], n=EMP.filter(e=>e.quals.includes(r.qual)).length;
+    const hh=r.slots.map(s=>HOURS[s]);
+    const rng=hh.every((v,i)=>i===0||v===hh[i-1]+1)?`${hh[0]}:00–${hh[hh.length-1]+1}:00`:hh.map(x=>x+'時').join('･');
+    h+=`<tr><td><span class="badge ${q.type==='公的'?'pub':'int'}">${q.type}</span></td><td><b>${esc(q.name)}</b></td>
+    <td style="font-size:11px">${esc(q.law)}</td><td>${r.scope==='plant'?'工場全体':r.procs.map(p=>PROCM[p].name).join('･')}</td>
+    <td class="num" style="white-space:nowrap">${rng}</td><td style="text-align:center" class="num">${r.count}</td>
+    <td style="font-size:11px">${esc(r.note)}</td>
+    <td style="text-align:center;font-weight:800;color:${n<=3?'var(--dang)':n<=5?'var(--warn)':'inherit'}">${n}名</td></tr>`;
+  });
+  $('#reqTbl').innerHTML=h+'</tbody>';
+
+  let h2='<thead><tr><th>区分</th><th>資格</th><th style="text-align:center">保有者数</th><th>勤務帯別の対応可能人数</th><th>保有者</th></tr></thead><tbody>';
+  Object.entries(QUALS).forEach(([k,q])=>{ const hs=EMP.filter(e=>e.quals.includes(k));
+    const per=Object.keys(BANDS).map(b=>hs.filter(e=>e.bands.includes(b)).length);
+    h2+=`<tr><td><span class="badge ${q.type==='公的'?'pub':'int'}">${q.type}</span></td><td><b>${esc(q.name)}</b></td>
+    <td style="text-align:center;font-weight:800;color:${hs.length<=3?'var(--dang)':hs.length<=5?'var(--warn)':'inherit'}">${hs.length}</td>
+    <td><div style="display:flex;gap:3px">${Object.keys(BANDS).map((b,i)=>`<span style="width:38px;text-align:center;font-size:10px;background:${per[i]<=1?'#F7E3E1':per[i]<=2?'#FAF1DE':'#E8F0EC'};border-radius:2px;padding:1px 0"><b class="num">${per[i]}</b><br><span style="color:var(--ink3)">${BANDS[b].name}</span></span>`).join('')}</div></td>
+    <td style="font-size:11px">${hs.map(e=>esc(e.name)+'('+e.id+')').join('、')||'—'}</td></tr>`;
+  });
+  $('#holderTbl').innerHTML=h2+'</tbody>';
+
+  let h3='<thead><tr><th>衛生区域</th><th>区域の位置づけ</th><th>該当工程</th><th>要員数（スキル保有者）</th></tr></thead><tbody>';
+  Object.entries(ZONES).forEach(([k,z])=>{
+    const ps=PROCS.filter(p=>p.zone===k);
+    h3+=`<tr><td style="white-space:nowrap"><span class="zchip" style="background:${z.color}">${z.name}</span></td>
+    <td style="font-size:11px">${z.note}</td><td>${ps.map(p=>p.name).join('、')}</td>
+    <td>${ps.map(p=>`${p.name} ${EMP.filter(e=>(e.sk[p.id]||0)>=1).length}名`).join(' / ')||'—'}</td></tr>`;
+  });
+  $('#zoneTbl').innerHTML=h3+'</tbody>';
+}
+
+/* ── 初期化 ── */
+S.menu=buildMonth(S.y,S.mo);
+renderMenuTab(); renderRecipe(); renderEmp(); renderReq();
+$('#runMonth').click();
+setTimeout(()=>{ if(S.R) runDay(3); go('month'); },900);
+</script>
+</body>
+</html>
